@@ -94,7 +94,7 @@ $files = $stmt->fetchAll(PDO::FETCH_ASSOC);
       position: relative;
     }
   </style>
-  <link href="responsive.css?v=20260928-7" rel="stylesheet">
+  <link href="responsive.css?v=20261017-9" rel="stylesheet">
 </head>
 <body class="has-fixed-navbar">
 
@@ -139,8 +139,8 @@ $files = $stmt->fetchAll(PDO::FETCH_ASSOC);
           <li><a class="dropdown-item status-option" data-status="hidden" href="#">⚪ 隱形</a></li>
         </ul>
       </li>
-      <li class="nav-item">
-        <a class="nav-link" href="logout.php">登出</a>
+      <li class="nav-item navbar-session-actions"><a class="nav-link" href="logout.php">登出</a>
+        <?php require __DIR__ . '/navbar_notifications.php'; ?>
       </li>
     </ul>
     </div>
@@ -257,5 +257,6 @@ function addToMyCloud(id) {
 </script>
 <script src="presence.js?v=20260928-2"></script>
 <script src="message_notifications.js?v=20260928-2"></script>
+<script src="navbar_notifications.js?v=20261017-1"></script>
 </body>
 </html>

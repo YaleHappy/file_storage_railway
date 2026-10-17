@@ -1,5 +1,7 @@
 /* Shared responsive foundation for all user-facing pages. */
 .navbar-notifications { flex: 0 0 auto; }
+.navbar-session-actions { display: flex; align-items: center; }
+.notification-bell { font-size: 1.2rem; line-height: 1; }
 .navbar-notifications #notificationDropdown {
   display: inline-flex;
   align-items: center;
@@ -22,8 +24,12 @@
 .navbar-notifications .notification-item { cursor: pointer; }
 .navbar-notifications .notification-item:hover { background: #ffffff14; }
 @media (max-width: 991.98px) {
-  .navbar:has(.navbar-notifications) .navbar-brand {
-    max-width: calc(100% - 125px);
+  .navbar-collapse .navbar-notifications .dropdown-menu {
+    position: absolute !important;
+    top: 100%;
+    left: 0;
+    right: auto;
+    width: min(320px, calc(100vw - 6rem)) !important;
   }
 }
 *,

@@ -321,7 +321,7 @@ html, body {
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
 }
   </style>
-  <link href="responsive.css?v=20260928-7" rel="stylesheet">
+  <link href="responsive.css?v=20261017-9" rel="stylesheet">
 </head>
 <body class="has-fixed-navbar">
 
@@ -341,26 +341,6 @@ html, body {
       </li>
       <li class="nav-item">
         <a class="nav-link" href="chat_history.php"><i class="bi bi-clock-history me-1"></i>聊天紀錄</a>
-      </li>
-      <!-- 通知鈴鐺 -->
-      <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle position-relative" href="#" id="notificationDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-          🔔 
-          <span class="position-absolute translate-middle badge rounded-pill bg-danger notification-badge" style="top: 5px; right: 0px; display: none;">
-            <span class="notification-count">0</span>
-            <span class="visually-hidden">未讀通知</span>
-          </span>
-        </a>
-        <div class="dropdown-menu dropdown-menu-end notification-dropdown" aria-labelledby="notificationDropdown" style="width: 300px; max-height: 400px; overflow-y: auto;">
-          <div class="d-flex justify-content-between align-items-center p-2 border-bottom">
-            <h6 class="m-0">通知</h6>
-            <button class="btn btn-sm btn-link text-decoration-none" id="clearAllNotifications">全部標為已讀</button>
-          </div>
-          <div class="notifications-container">
-            <!-- 通知內容將由JS動態載入 -->
-            <div class="text-center p-3 text-muted">載入中...</div>
-          </div>
-        </div>
       </li>
       <!-- 使用者名稱改成下拉選單 -->
       <li class="nav-item dropdown">
@@ -392,8 +372,8 @@ html, body {
           <a class="nav-link" href="admin.php">🛠️ 管理後台</a>
         </li>
       <?php endif; ?>
-      <li class="nav-item">
-        <a class="nav-link" href="logout.php">登出</a>
+      <li class="nav-item navbar-session-actions"><a class="nav-link" href="logout.php">登出</a>
+        <?php require __DIR__ . '/navbar_notifications.php'; ?>
       </li>
     </ul>
     </div>

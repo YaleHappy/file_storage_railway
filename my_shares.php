@@ -191,14 +191,14 @@ if (!isset($_SESSION['status']) && isset($_SESSION['user_id'])) {
     .btn-danger { background-color:#e74c3c; border:none; padding:6px 12px; }
     .btn-danger:hover { background-color:#c0392b; }
   </style>
-  <link href="responsive.css?v=20261017-8" rel="stylesheet">
+  <link href="responsive.css?v=20261017-9" rel="stylesheet">
 </head>
 <body class="has-fixed-navbar">
 
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
   <div class="container">
     <a class="navbar-brand fw-bold" href="index.php">☁️ 雲上聊頁來</a>
-    <?php require __DIR__ . '/navbar_notifications.php'; ?>
+
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sharesNavbar" aria-controls="sharesNavbar" aria-expanded="false" aria-label="切換導覽選單">
       <span class="navbar-toggler-icon"></span>
     </button>
@@ -229,7 +229,9 @@ if (!isset($_SESSION['status']) && isset($_SESSION['user_id'])) {
           <li><a class="dropdown-item status-option" data-status="hidden" href="#">⚪ 隱形</a></li>
         </ul>
       </li>
-      <li class="nav-item"><a class="nav-link" href="logout.php">登出</a></li>
+      <li class="nav-item navbar-session-actions"><a class="nav-link" href="logout.php">登出</a>
+        <?php require __DIR__ . '/navbar_notifications.php'; ?>
+      </li>
     </ul>
     </div>
   </div>
