@@ -191,13 +191,14 @@ if (!isset($_SESSION['status']) && isset($_SESSION['user_id'])) {
     .btn-danger { background-color:#e74c3c; border:none; padding:6px 12px; }
     .btn-danger:hover { background-color:#c0392b; }
   </style>
-  <link href="responsive.css?v=20260928-7" rel="stylesheet">
+  <link href="responsive.css?v=20261017-8" rel="stylesheet">
 </head>
 <body class="has-fixed-navbar">
 
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
   <div class="container">
     <a class="navbar-brand fw-bold" href="index.php">☁️ 雲上聊頁來</a>
+    <?php require __DIR__ . '/navbar_notifications.php'; ?>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sharesNavbar" aria-controls="sharesNavbar" aria-expanded="false" aria-label="切換導覽選單">
       <span class="navbar-toggler-icon"></span>
     </button>
@@ -402,5 +403,6 @@ document.querySelectorAll('.password').forEach(input => {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="presence.js?v=20260928-2"></script>
 <script src="message_notifications.js?v=20260928-2"></script>
+<script src="navbar_notifications.js?v=20261017-1"></script>
 </body>
 </html>

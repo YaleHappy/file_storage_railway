@@ -1,4 +1,31 @@
 /* Shared responsive foundation for all user-facing pages. */
+.navbar-notifications { flex: 0 0 auto; }
+.navbar-notifications #notificationDropdown {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: .5rem;
+  color: #fff;
+}
+.navbar-notifications .notification-dropdown {
+  background: #25274d;
+  color: #fff;
+  max-height: min(450px, 70dvh);
+  overflow-y: auto;
+  box-shadow: 0 5px 15px #0005;
+}
+.navbar-notifications #notificationDropdown:hover,
+.navbar-notifications #notificationDropdown:focus-visible,
+.navbar-notifications #notificationDropdown.show { color: #212529; background: #f8f9fa; }
+.navbar-notifications .notification-item { cursor: pointer; }
+.navbar-notifications .notification-item:hover { background: #ffffff14; }
+@media (max-width: 991.98px) {
+  .navbar:has(.navbar-notifications) .navbar-brand {
+    max-width: calc(100% - 125px);
+  }
+}
 *,
 *::before,
 *::after {
