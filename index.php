@@ -203,6 +203,12 @@ html, body {
 .modal.show {
   z-index: 1060;
 }
+/* 白底視窗使用深色文字，避免繼承頁面的白色文字。 */
+.modal-content {
+  background-color: #fff;
+  color: #212529;
+  color-scheme: light;
+}
 /* 右側固定使用者狀態面板 (略) */
 #userPopup {
   position: fixed;
@@ -1702,6 +1708,7 @@ function renderNotifications(notifications) {
             <small class="text-muted">${formattedDate}</small>
           </div>
           <button class="btn btn-sm mark-read-btn" title="標記為已讀" data-id="${notification.id}">✓</button>
+          <button type="button" class="btn btn-outline-light btn-sm delete-notification-btn ms-1 flex-shrink-0" title="刪除通知" aria-label="刪除通知" data-id="${notification.id}"><i class="bi bi-trash" aria-hidden="true"></i></button>
         </div>
       </div>
     `;
@@ -1717,6 +1724,25 @@ function renderNotifications(notifications) {
   `;
   
   notificationsContainer.innerHTML = html;
+
+  notificationsContainer.querySelectorAll('.delete-notification-btn').forEach(btn => {
+    btn.addEventListener('click', async function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      this.disabled = true;
+      const formData = new FormData();
+      formData.append('notification_id', this.dataset.id);
+      try {
+        const response = await fetch('clear_notifications.php', { method: 'POST', body: formData });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.msg || '刪除通知失敗');
+        loadNotifications();
+      } catch (error) {
+        alert(error.message || '刪除通知失敗，請稍後重試');
+        this.disabled = false;
+      }
+    });
+  });
   
   // 為每個標記已讀按鈕添加事件
   document.querySelectorAll('.mark-read-btn').forEach(btn => {
