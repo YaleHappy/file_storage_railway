@@ -1,0 +1,70 @@
+.chat-back { display: none; }
+.message-bubble[data-message-id] { -webkit-touch-callout: none; }
+.message-action-menu {
+  position: fixed;
+  z-index: 2000;
+  width: 160px;
+  padding: .4rem;
+  border: 1px solid #565a87;
+  border-radius: 12px;
+  background: #25274d;
+  color: #fff;
+  box-shadow: 0 8px 24px #0008;
+}
+.message-action-menu[hidden] { display: none; }
+.message-action-menu button {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: .65rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #fff;
+  text-align: left;
+}
+.message-action-menu button:hover,
+.message-action-menu button:focus-visible { background: #414576; }
+.chat-edit-dialog {
+  width: min(460px, calc(100vw - 2rem));
+  padding: 1.25rem;
+  border: 1px solid #565a87;
+  border-radius: 12px;
+  background: #25274d;
+  color: #fff;
+}
+.chat-edit-dialog::backdrop { background: #0009; }
+.chat-edit-dialog textarea { width: 100%; min-height: 140px; margin: 1rem 0; }
+@media (pointer: coarse) {
+  .message-bubble[data-message-id] { user-select: none; -webkit-user-select: none; }
+}
+@media (max-width: 767.98px) {
+  .history-shell .conversation-list {
+    display: block;
+    overflow: auto;
+    max-height: none;
+    scroll-snap-type: none;
+  }
+  .history-shell .conversation-item { margin-bottom: .5rem; }
+  .history-shell .conversation-item[hidden] { display: none; }
+  .history-shell:not(.conversation-open) .chat-panel { display: none; }
+  .history-shell.conversation-open .conversation-panel { display: none; }
+  .history-shell.conversation-open {
+    height: calc(100dvh - 6rem);
+    min-height: 280px;
+    display: flex;
+  }
+  .history-page:has(.conversation-open) .history-heading { display: none; }
+  .history-shell.conversation-open .chat-panel { flex: 1; min-height: 0; }
+  .history-shell.conversation-open .chat-messages {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+    overscroll-behavior: contain;
+  }
+  .chat-header, .chat-composer { flex-shrink: 0; }
+  .chat-back { display: inline-flex; align-items: center; min-height: 44px; }
+  .chat-header > div { flex: 1; min-width: 0; }
+  .chat-header h2 { overflow-wrap: anywhere; }
+  .chat-composer { padding-bottom: max(.75rem, env(safe-area-inset-bottom)); }
+}

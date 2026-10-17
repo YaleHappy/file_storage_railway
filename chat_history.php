@@ -8,6 +8,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $currentUserId = (int) $_SESSION['user_id'];
+$_SESSION['chat_csrf'] ??= bin2hex(random_bytes(32));
 $conversationStmt = $pdo->prepare("
     SELECT
         u.user_id,
@@ -513,6 +514,7 @@ function formatChatTime(?string $dateTime): string
     }
   </style>
   <link href="responsive.css?v=20260928-7" rel="stylesheet">
+  <link href="chat_interactions.css?v=20261017-1" rel="stylesheet">
 </head>
 <body class="has-fixed-navbar">
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
@@ -570,7 +572,7 @@ function formatChatTime(?string $dateTime): string
     <p>查看過往對話，或接著傳送訊息。</p>
   </header>
 
-  <section class="history-shell" aria-label="聊天紀錄">
+  <section class="history-shell<?= $requestedUserId > 0 && $selectedConversation ? ' conversation-open' : '' ?>" aria-label="聊天紀錄">
     <aside class="conversation-panel">
       <div class="conversation-toolbar">
         <h2>最近對話</h2>
@@ -604,6 +606,7 @@ function formatChatTime(?string $dateTime): string
     <div class="chat-panel">
       <?php if ($selectedConversation): ?>
         <div class="chat-header">
+          <a class="chat-back btn btn-sm btn-outline-light" href="chat_history.php" aria-label="返回對話列表"><i class="bi bi-arrow-left"></i></a>
           <div>
             <h2><?= htmlspecialchars($selectedConversation['username']) ?></h2>
             <small><?= (int) $selectedConversation['message_count'] ?> 則訊息 · <?= (int) $selectedConversation['file_count'] ?> 個檔案</small>
@@ -621,7 +624,7 @@ function formatChatTime(?string $dateTime): string
           <?php foreach ($timelineEvents as $event): ?>
             <?php $isSent = (int) $event['sender_id'] === $currentUserId; ?>
             <div class="message-row <?= $isSent ? 'sent' : 'received' ?>">
-              <div class="message-bubble<?= $event['event_type'] === 'file' ? ' file-bubble' : '' ?>">
+              <div class="message-bubble<?= $event['event_type'] === 'file' ? ' file-bubble' : '' ?>"<?php if ($isSent && $event['event_type'] === 'message'): ?> data-message-id="<?= (int) $event['event_id'] ?>" tabindex="0" aria-label="你傳送的訊息，右鍵或長按可編輯或收回"<?php endif; ?>>
                 <?php if ($event['event_type'] === 'file'): ?>
                   <div class="file-event-title">
                     <i class="bi bi-file-earmark-arrow-down"></i>
@@ -634,7 +637,7 @@ function formatChatTime(?string $dateTime): string
                     </div>
                   <?php endif; ?>
                 <?php else: ?>
-                  <div class="message-text"><?= nl2br(htmlspecialchars($event['content'])) ?></div>
+                  <div class="message-text"><?= htmlspecialchars($event['content']) ?></div>
                 <?php endif; ?>
                 <time class="message-time"><?= htmlspecialchars(formatChatTime($event['event_at'])) ?></time>
               </div>
@@ -660,6 +663,7 @@ function formatChatTime(?string $dateTime): string
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="chat_message_actions.js?v=20261017-1"></script>
 <script>
 const currentUserId = <?= $currentUserId ?>;
 const selectedUserId = <?= $selectedUserId ?>;
@@ -668,6 +672,12 @@ const chatMessages = document.getElementById('chatMessages');
 const chatForm = document.getElementById('chatForm');
 const chatInput = document.getElementById('chatInput');
 const sendButton = document.getElementById('sendButton');
+const messageActions = chatMessages ? window.installChatMessageActions({
+  container: chatMessages,
+  csrfToken: <?= json_encode($_SESSION['chat_csrf']) ?>,
+  onChange: () => refreshTimeline(true)
+}) : null;
+let timelineSignature = null;
 
 function formatMessageTime(value) {
   if (!value) return '';
@@ -677,6 +687,10 @@ function formatMessageTime(value) {
 
 function renderTimeline(events, keepScrollPosition = false) {
   if (!chatMessages) return;
+  const signature = JSON.stringify(events);
+  if (signature === timelineSignature) return;
+  timelineSignature = signature;
+  const previousScrollTop = chatMessages.scrollTop;
   const wasNearBottom = chatMessages.scrollHeight - chatMessages.scrollTop - chatMessages.clientHeight < 80;
   chatMessages.replaceChildren();
 
@@ -694,6 +708,11 @@ function renderTimeline(events, keepScrollPosition = false) {
 
     const bubble = document.createElement('div');
     bubble.className = `message-bubble${event.event_type === 'file' ? ' file-bubble' : ''}`;
+    if (isSent && event.event_type === 'message') {
+      bubble.dataset.messageId = Number(event.event_id);
+      bubble.tabIndex = 0;
+      bubble.setAttribute('aria-label', '你傳送的訊息，右鍵或長按可編輯或收回');
+    }
 
     if (event.event_type === 'file') {
       const title = document.createElement('div');
@@ -738,15 +757,25 @@ function renderTimeline(events, keepScrollPosition = false) {
 
   if (!keepScrollPosition || wasNearBottom) {
     chatMessages.scrollTop = chatMessages.scrollHeight;
+  } else {
+    chatMessages.scrollTop = previousScrollTop;
   }
 }
 
 async function refreshTimeline(keepScrollPosition = true) {
-  if (!selectedUserId || !chatMessages) return;
+  if (!selectedUserId || !chatMessages || messageActions?.isBusy()) return;
+  const version = messageActions?.version();
   try {
     const response = await fetch(`chat_timeline.php?recipient_id=${selectedUserId}`, { cache: 'no-store' });
     const data = await response.json();
-    if (data.success) renderTimeline(data.events, keepScrollPosition);
+    if (data.success && !messageActions?.isBusy() && version === messageActions?.version()) {
+      renderTimeline(data.events, keepScrollPosition);
+      const preview = document.querySelector('.conversation-item.active .conversation-preview');
+      const latest = data.events[data.events.length - 1];
+      if (preview) preview.textContent = latest
+        ? (latest.event_type === 'file' ? '📎 檔案：' + latest.original_filename : latest.content)
+        : '尚無訊息';
+    }
   } catch (error) {
     console.error('無法更新聊天紀錄', error);
   }
