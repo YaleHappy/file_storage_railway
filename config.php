@@ -1,13 +1,12 @@
-
 <?php
 // config.php（Railway MySQL 版本）
 
-// Railway MySQL 連線設定
-$db_host = "mysql.railway.internal";
-$db_port = "3306";
-$db_name = "file_storage_db";
-$db_user = "root";
-$db_pass = "請填入Railway的MYSQLPASSWORD";
+// Railway MySQL 固定連線設定
+$db_host = 'mysql.railway.internal';
+$db_port = '3306';
+$db_name = 'file_storage_db';
+$db_user = 'root';
+$db_pass = 'jnktoligkZdqECAOosuAIBetLUZkobIB';
 
 // PHP 時區設定為台北
 date_default_timezone_set('Asia/Taipei');
