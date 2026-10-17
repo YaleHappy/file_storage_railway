@@ -8,6 +8,9 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
+require_once __DIR__ . '/file_cleanup.php';
+cleanupMissingUserFiles($pdo, (int) $_SESSION['user_id']);
+
 // (A) 取得目前所在資料夾 (0 代表根目錄)
 $currentFolder = isset($_GET['folder']) ? (int)$_GET['folder'] : 0;
 

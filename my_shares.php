@@ -8,6 +8,9 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
+require_once __DIR__ . '/file_cleanup.php';
+cleanupMissingUserFiles($pdo, (int) $_SESSION['user_id']);
+
 header('Content-Type: text/html; charset=utf-8');
 
 // ✅ 依目前請求自動組 share.php 連結

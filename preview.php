@@ -66,6 +66,8 @@ $filePath = __DIR__ . '/uploads/' . $fileRow['stored_filename'];
 
 
 if (!is_file($filePath)) {
+    require_once __DIR__ . '/file_cleanup.php';
+    cleanupMissingUserFiles($pdo, (int) $_SESSION['user_id']);
     http_response_code(404);
     exit('<p style="color:red;">檔案遺失，無法預覽。</p>');
 }
