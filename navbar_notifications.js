@@ -4,6 +4,8 @@ const notificationCount = document.querySelector('.notification-count');
 const notificationsContainer = document.querySelector('.notifications-container');
 const notificationDropdown = document.getElementById('notificationDropdown');
 const clearAllNotifications = document.getElementById('clearAllNotifications');
+let deletionPending = false;
+let notificationVersion = 0;
 
 function formatNotificationTime(value) {
   return String(value || '').replace('T', ' ').slice(0, 16);
@@ -44,7 +46,35 @@ function renderNotifications(notifications) {
     time.className = 'text-muted';
     time.textContent = formatNotificationTime(notification.created_at);
     content.append(message, time);
-    row.append(icon, content);
+    const deleteButton = document.createElement('button');
+    deleteButton.type = 'button';
+    deleteButton.className = 'btn btn-outline-light btn-sm delete-notification-btn ms-2 flex-shrink-0';
+    deleteButton.title = '刪除通知';
+    deleteButton.setAttribute('aria-label', '刪除通知');
+    deleteButton.innerHTML = '<i class="bi bi-trash" aria-hidden="true"></i>';
+    deleteButton.addEventListener('click', async event => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (deletionPending) return;
+      deletionPending = true;
+      notificationVersion++;
+      deleteButton.disabled = true;
+      try {
+        const body = new FormData();
+        body.append('notification_id', notification.id);
+        const response = await fetch('clear_notifications.php', { method: 'POST', body });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.msg || '刪除通知失敗');
+        item.remove();
+      } catch (error) {
+        window.alert(error.message || '刪除通知失敗，請稍後再試');
+        deleteButton.disabled = false;
+      } finally {
+        deletionPending = false;
+        await loadNotifications();
+      }
+    });
+    row.append(icon, content, deleteButton);
     item.appendChild(row);
 
     const openNotification = () => {
@@ -55,6 +85,7 @@ function renderNotifications(notifications) {
     };
     item.addEventListener('click', openNotification);
     item.addEventListener('keydown', event => {
+      if (event.target !== item) return;
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
         openNotification();
@@ -65,10 +96,12 @@ function renderNotifications(notifications) {
 }
 
 async function loadNotifications() {
+  if (deletionPending) return;
+  const version = notificationVersion;
   try {
     const response = await fetch(`check_notifications.php?_=${Date.now()}`, { cache: 'no-store' });
     const data = await response.json();
-    if (data.success) {
+    if (data.success && !deletionPending && version === notificationVersion) {
       updateNotificationBadge(Number(data.total_unread));
       renderNotifications(data.notifications || []);
     }

@@ -257,6 +257,6 @@ function addToMyCloud(id) {
 </script>
 <script src="presence.js?v=20260928-2"></script>
 <script src="message_notifications.js?v=20260928-2"></script>
-<script src="navbar_notifications.js?v=20261017-1"></script>
+<script src="navbar_notifications.js?v=20261017-2"></script>
 </body>
 </html>
