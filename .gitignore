@@ -1,6 +1,7 @@
 /config.php
-/uploads/*
-!/uploads/.gitkeep
 .env
 .env.*
 *.log
+
+/uploads/*
+!/uploads/.gitkeep
