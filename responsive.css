@@ -1,0 +1,345 @@
+/* Shared responsive foundation for all user-facing pages. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+img,
+video,
+audio,
+embed,
+iframe {
+  max-width: 100%;
+}
+
+input,
+select,
+textarea,
+button {
+  max-width: 100%;
+}
+
+.navbar-brand {
+  min-width: 0;
+  max-width: calc(100vw - 5.5rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.navbar-toggler {
+  flex: 0 0 auto;
+}
+
+.navbar-collapse .navbar-nav {
+  min-width: 0;
+}
+
+.dropdown-menu {
+  max-width: calc(100vw - 1.5rem);
+}
+
+.notification-dropdown {
+  width: min(320px, calc(100vw - 1.5rem)) !important;
+  overflow-wrap: anywhere;
+}
+
+#notificationDropdown {
+  padding-right: 1.35rem;
+}
+
+.notification-badge {
+  top: 0.2rem !important;
+  right: 0.25rem !important;
+  min-width: 0.8rem;
+  height: 0.8rem;
+  padding: 0 0.18rem;
+  border: 1px solid #212529;
+  font-size: 0.5rem !important;
+  line-height: 0.7rem;
+  transform: none !important;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-responsive > .table {
+  margin-bottom: 0;
+}
+
+.table td,
+.table th {
+  overflow-wrap: anywhere;
+}
+
+.card,
+.card-body,
+.card-footer,
+.modal-content {
+  min-width: 0;
+}
+
+.card-title,
+.notification-message,
+.link-container,
+.link-container input {
+  overflow-wrap: anywhere;
+}
+
+.card-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.card-footer .btn {
+  margin: 0 !important;
+}
+
+.modal-body {
+  overflow-wrap: anywhere;
+}
+
+.modal-body iframe,
+.modal-body embed {
+  width: 100%;
+}
+
+.auth-page {
+  min-height: 100vh;
+  min-height: 100svh;
+  height: auto !important;
+  padding: 1.5rem 1rem;
+}
+
+.login-container,
+.register-container {
+  min-width: 0;
+}
+
+.preview-frame {
+  min-height: 360px;
+  height: min(70vh, 720px) !important;
+}
+
+.admin-section-nav {
+  flex-wrap: nowrap;
+  justify-content: flex-start !important;
+  overflow-x: auto;
+  padding-bottom: 0.4rem;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.admin-section-nav .nav-item {
+  flex: 0 0 auto;
+}
+
+.bulk-actions {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+@media (max-width: 991.98px) {
+  body.has-fixed-navbar {
+    padding-top: 4.5rem !important;
+  }
+
+  .navbar > .container,
+  .navbar > .container-fluid {
+    align-items: center;
+  }
+
+  .navbar-collapse {
+    max-height: calc(100vh - 4rem);
+    overflow-y: auto;
+    padding: 0.75rem 0 1rem;
+  }
+
+  .navbar-collapse .navbar-nav {
+    gap: 0.15rem;
+  }
+
+  .navbar-collapse .nav-link {
+    padding: 0.65rem 0.75rem;
+    border-radius: 0.35rem;
+  }
+
+  .navbar-collapse .dropdown-menu {
+    position: static !important;
+    width: 100% !important;
+    max-width: 100%;
+    margin: 0.25rem 0 0.5rem;
+  }
+
+  .notification-badge {
+    position: absolute !important;
+    width: auto !important;
+    max-width: none !important;
+    transform: none !important;
+    margin: 0;
+  }
+
+  #notificationDropdown {
+    display: inline-flex;
+    align-items: center;
+    width: auto;
+    padding-right: 1.35rem;
+  }
+
+  #userPopup {
+    top: auto !important;
+    right: 1rem !important;
+    bottom: 9.5rem;
+    left: 1rem;
+    width: auto !important;
+    max-height: min(65vh, 430px) !important;
+    transform: none !important;
+  }
+
+  #toggleUserPopup {
+    top: auto !important;
+    right: 1rem !important;
+    bottom: 5.25rem;
+  }
+
+  .fab {
+    right: 1rem !important;
+    bottom: 1rem !important;
+    font-size: 1.5rem !important;
+  }
+
+  .table-container {
+    padding: 1rem !important;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .container,
+  .container-sm,
+  .container-md {
+    --bs-gutter-x: 1.5rem;
+  }
+
+  h1 {
+    font-size: clamp(1.6rem, 8vw, 2rem);
+  }
+
+  h2 {
+    font-size: clamp(1.35rem, 7vw, 1.75rem);
+  }
+
+  .login-card,
+  .register-card {
+    padding: 1.35rem !important;
+  }
+
+  .register-container {
+    padding: 0 !important;
+  }
+
+  .website-title {
+    font-size: 1.45rem !important;
+  }
+
+  .website-description {
+    margin-bottom: 1rem !important;
+  }
+
+  .modal-dialog {
+    width: auto;
+    margin: 0.5rem;
+  }
+
+  .modal-dialog-scrollable,
+  .modal-dialog-scrollable .modal-content {
+    max-height: calc(100vh - 1rem);
+    max-height: calc(100svh - 1rem);
+  }
+
+  .modal-header,
+  .modal-body,
+  .modal-footer {
+    padding: 0.85rem;
+  }
+
+  .modal-footer {
+    flex-wrap: wrap;
+  }
+
+  .modal-footer .btn {
+    flex: 1 1 8rem;
+    margin: 0 !important;
+  }
+
+  .chat-message {
+    max-width: 88% !important;
+  }
+
+  .preview-container {
+    padding: 0.75rem !important;
+  }
+
+  .preview-frame {
+    min-height: 300px;
+    height: 65vh !important;
+  }
+
+  .fallback-message {
+    padding: 1rem !important;
+  }
+
+  .responsive-actions,
+  .bulk-actions {
+    align-items: stretch !important;
+  }
+
+  .responsive-actions .btn,
+  .bulk-actions .btn,
+  .bulk-actions label {
+    flex: 1 1 auto;
+  }
+
+  .table-responsive .table {
+    min-width: 680px;
+  }
+
+  .search-box {
+    max-width: none !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .navbar-brand {
+    font-size: 1rem;
+  }
+
+  .card-file {
+    padding: 0.75rem !important;
+  }
+
+  .btn {
+    white-space: normal;
+  }
+
+  .table-container {
+    border-radius: 0 !important;
+    margin-right: calc(var(--bs-gutter-x) * -0.5);
+    margin-left: calc(var(--bs-gutter-x) * -0.5);
+  }
+}
