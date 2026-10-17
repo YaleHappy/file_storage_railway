@@ -26,4 +26,14 @@ rejectsChat(fn() => changeOwnChatMessage($pdo, 10, 1, 'delete-all'), InvalidArgu
 changeOwnChatMessage($pdo, 10, 1, 'recall');
 checkChat((int) $pdo->query('SELECT COUNT(*) FROM chat_messages WHERE id = 1')->fetchColumn() === 0, 'Recalled message must disappear for both participants');
 checkChat($pdo->query('SELECT message FROM chat_messages WHERE id = 2')->fetchColumn() === 'reply', 'Other messages must remain unchanged');
-echo "Chat edit, recall, validation and ownership checks passed\n";
+$pdo->exec('CREATE TABLE shared_files (id INTEGER PRIMARY KEY, sender_id INTEGER, recipient_id INTEGER, file_path TEXT)');
+$pdo->exec("INSERT INTO shared_files VALUES (2, 10, 20, 'uploads/shared/original.png'), (3, 20, 10, 'uploads/shared/other.png'), (4, 10, 30, 'uploads/shared/original.png')");
+rejectsChat(fn() => recallOwnChatFile($pdo, 10, 3), OutOfBoundsException::class);
+rejectsChat(fn() => recallOwnChatFile($pdo, 20, 2), OutOfBoundsException::class);
+rejectsChat(fn() => recallOwnChatFile($pdo, 10, 0), InvalidArgumentException::class);
+recallOwnChatFile($pdo, 10, 2);
+checkChat((int) $pdo->query('SELECT COUNT(*) FROM shared_files WHERE id = 2 AND recipient_id = 20')->fetchColumn() === 0, 'Recalled delivery must no longer authorize download or save');
+checkChat((int) $pdo->query('SELECT COUNT(*) FROM shared_files')->fetchColumn() === 2, 'Other deliveries must remain');
+checkChat($pdo->query('SELECT message FROM chat_messages WHERE id = 2')->fetchColumn() === 'reply', 'Same ID in message table must remain unchanged');
+rejectsChat(fn() => recallOwnChatFile($pdo, 10, 2), OutOfBoundsException::class);
+echo "Chat message and file recall, validation and ownership checks passed\n";

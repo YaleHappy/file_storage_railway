@@ -514,7 +514,7 @@ function formatChatTime(?string $dateTime): string
     }
   </style>
   <link href="responsive.css?v=20260928-7" rel="stylesheet">
-  <link href="chat_interactions.css?v=20261017-1" rel="stylesheet">
+  <link href="chat_interactions.css?v=20261017-2" rel="stylesheet">
 </head>
 <body class="has-fixed-navbar">
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
@@ -624,7 +624,7 @@ function formatChatTime(?string $dateTime): string
           <?php foreach ($timelineEvents as $event): ?>
             <?php $isSent = (int) $event['sender_id'] === $currentUserId; ?>
             <div class="message-row <?= $isSent ? 'sent' : 'received' ?>">
-              <div class="message-bubble<?= $event['event_type'] === 'file' ? ' file-bubble' : '' ?>"<?php if ($isSent && $event['event_type'] === 'message'): ?> data-message-id="<?= (int) $event['event_id'] ?>" tabindex="0" aria-label="你傳送的訊息，右鍵或長按可編輯或收回"<?php endif; ?>>
+              <div class="message-bubble<?= $event['event_type'] === 'file' ? ' file-bubble' : '' ?>"<?php if ($isSent): ?> data-message-id="<?= (int) $event['event_id'] ?>" data-event-type="<?= htmlspecialchars($event['event_type']) ?>" tabindex="0" aria-label="<?= $event['event_type'] === 'file' ? '你傳送的檔案，右鍵或長按可收回' : '你傳送的訊息，右鍵或長按可編輯或收回' ?>"<?php endif; ?>>
                 <?php if ($event['event_type'] === 'file'): ?>
                   <div class="file-event-title">
                     <i class="bi bi-file-earmark-arrow-down"></i>
@@ -663,7 +663,7 @@ function formatChatTime(?string $dateTime): string
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="chat_message_actions.js?v=20261017-1"></script>
+<script src="chat_message_actions.js?v=20261017-2"></script>
 <script>
 const currentUserId = <?= $currentUserId ?>;
 const selectedUserId = <?= $selectedUserId ?>;
@@ -708,10 +708,12 @@ function renderTimeline(events, keepScrollPosition = false) {
 
     const bubble = document.createElement('div');
     bubble.className = `message-bubble${event.event_type === 'file' ? ' file-bubble' : ''}`;
-    if (isSent && event.event_type === 'message') {
+    if (isSent) {
       bubble.dataset.messageId = Number(event.event_id);
+      bubble.dataset.eventType = event.event_type;
       bubble.tabIndex = 0;
-      bubble.setAttribute('aria-label', '你傳送的訊息，右鍵或長按可編輯或收回');
+      bubble.setAttribute('aria-label', event.event_type === 'file'
+        ? '你傳送的檔案，右鍵或長按可收回' : '你傳送的訊息，右鍵或長按可編輯或收回');
     }
 
     if (event.event_type === 'file') {

@@ -25,6 +25,7 @@
 }
 .message-action-menu button:hover,
 .message-action-menu button:focus-visible { background: #414576; }
+.message-action-menu button[hidden] { display: none; }
 .chat-edit-dialog {
   width: min(460px, calc(100vw - 2rem));
   padding: 1.25rem;

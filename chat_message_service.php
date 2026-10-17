@@ -1,5 +1,19 @@
 <?php
 
+function recallOwnChatFile(PDO $pdo, int $userId, int $fileId): void
+{
+    if ($userId <= 0 || $fileId <= 0) {
+        throw new InvalidArgumentException('無效的檔案操作');
+    }
+    // Downloads and "add to cloud" require this record and recipient ownership.
+    // Remove only this delivery, preserving original files and saved copies.
+    $stmt = $pdo->prepare('DELETE FROM shared_files WHERE id = ? AND sender_id = ?');
+    $stmt->execute([$fileId, $userId]);
+    if ($stmt->rowCount() === 0) {
+        throw new OutOfBoundsException('檔案傳送紀錄不存在或你沒有收回權限');
+    }
+}
+
 function changeOwnChatMessage(PDO $pdo, int $userId, int $messageId, string $action, string $message = ''): void
 {
     if ($userId <= 0 || $messageId <= 0 || !in_array($action, ['edit', 'recall'], true)) {

@@ -26,12 +26,18 @@ window.installChatMessageActions = function({ container, csrfToken, onChange }) 
   }
   function showMenu(bubble, x, y) {
     if (pending || editor.open) return;
-    selected = { id: bubble.dataset.messageId, text: bubble.querySelector('.message-text').textContent };
+    selected = {
+      id: bubble.dataset.messageId,
+      type: bubble.dataset.eventType || 'message',
+      text: bubble.querySelector('.message-text')?.textContent || ''
+    };
+    menu.querySelector('[data-action="edit"]').hidden = selected.type === 'file';
+    menu.querySelector('[data-action="recall"]').textContent = selected.type === 'file' ? '收回檔案' : '收回訊息';
     restoreFocus = bubble;
     menu.hidden = false;
     menu.style.left = `${Math.max(8, Math.min(x, window.innerWidth - menu.offsetWidth - 8))}px`;
     menu.style.top = `${Math.max(8, Math.min(y, window.innerHeight - menu.offsetHeight - 8))}px`;
-    menu.querySelector('button').focus({ preventScroll: true });
+    menu.querySelector('button:not([hidden])').focus({ preventScroll: true });
   }
   function cancelPress() {
     if (press) clearTimeout(press.timer);
@@ -88,7 +94,7 @@ window.installChatMessageActions = function({ container, csrfToken, onChange }) 
     }
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
-      const buttons = [...menu.querySelectorAll('button')];
+      const buttons = [...menu.querySelectorAll('button:not([hidden])')];
       buttons[(buttons.indexOf(document.activeElement) + 1) % buttons.length].focus();
     }
   });
@@ -99,7 +105,7 @@ window.installChatMessageActions = function({ container, csrfToken, onChange }) 
     revision++;
     saveButton.disabled = true;
     try {
-      const body = new URLSearchParams({ action, message, message_id: selected.id, csrf_token: csrfToken });
+      const body = new URLSearchParams({ action, message, message_id: selected.id, event_type: selected.type, csrf_token: csrfToken });
       const response = await fetch('chat_message_action.php', { method: 'POST', body });
       const data = await response.json();
       if (!response.ok || !data.success) throw new Error(data.msg || '訊息操作失敗');
@@ -118,11 +124,13 @@ window.installChatMessageActions = function({ container, csrfToken, onChange }) 
     const button = event.target.closest('[data-action]');
     if (!button || !selected) return;
     closeMenu();
-    if (button.dataset.action === 'edit') {
+    if (button.dataset.action === 'edit' && selected.type === 'message') {
       textarea.value = selected.text;
       editor.showModal();
       textarea.focus();
-    } else if (window.confirm('確定收回這則訊息？雙方都將看不到此訊息。')) {
+    } else if (button.dataset.action === 'recall' && window.confirm(selected.type === 'file'
+      ? '確定收回這個檔案？對方將無法再透過這筆傳送下載，但已下載或另存的副本不會移除。'
+      : '確定收回這則訊息？雙方都將看不到此訊息。')) {
       await mutate('recall');
     }
   });

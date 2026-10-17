@@ -25,10 +25,18 @@ try {
     $id = filter_var($_POST['message_id'] ?? null, FILTER_VALIDATE_INT);
     $action = $_POST['action'] ?? '';
     $message = $_POST['message'] ?? '';
-    if (!$id || !is_string($action) || !is_string($message)) {
+    $eventType = $_POST['event_type'] ?? 'message';
+    if (!$id || !is_string($action) || !is_string($message) || !in_array($eventType, ['message', 'file'], true)) {
         throw new InvalidArgumentException('無效的訊息操作');
     }
-    changeOwnChatMessage($pdo, (int) $_SESSION['user_id'], $id, $action, $message);
+    if ($eventType === 'file') {
+        if ($action !== 'recall') {
+            throw new InvalidArgumentException('檔案只支援收回，無法編輯');
+        }
+        recallOwnChatFile($pdo, (int) $_SESSION['user_id'], $id);
+    } else {
+        changeOwnChatMessage($pdo, (int) $_SESSION['user_id'], $id, $action, $message);
+    }
     echo json_encode(['success' => true]);
 } catch (InvalidArgumentException $error) {
     http_response_code(400);
