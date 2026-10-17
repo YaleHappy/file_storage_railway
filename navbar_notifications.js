@@ -23,7 +23,6 @@ function renderNotifications(notifications) {
     empty.className = 'text-center p-3 text-muted';
     empty.textContent = '沒有通知';
     notificationsContainer.appendChild(empty);
-    return;
   }
 
   notifications.forEach(notification => {
@@ -93,6 +92,38 @@ function renderNotifications(notifications) {
     });
     notificationsContainer.appendChild(item);
   });
+
+  const footer = document.createElement('div');
+  footer.className = 'text-center p-3';
+  const clearHistoryButton = document.createElement('button');
+  clearHistoryButton.type = 'button';
+  clearHistoryButton.className = 'btn btn-outline-danger btn-sm';
+  clearHistoryButton.textContent = '清除所有通知歷史';
+  clearHistoryButton.addEventListener('click', async event => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (deletionPending || !window.confirm('確定要清除所有通知歷史嗎？此操作不可恢復。')) return;
+    deletionPending = true;
+    notificationVersion++;
+    clearHistoryButton.disabled = true;
+    try {
+      const body = new FormData();
+      body.append('clear_history', '1');
+      const response = await fetch('clear_notifications.php', { method: 'POST', body });
+      const data = await response.json();
+      if (!response.ok || !data.success) throw new Error(data.msg || '清除通知歷史失敗');
+      updateNotificationBadge(0);
+      renderNotifications([]);
+    } catch (error) {
+      window.alert(error.message || '清除通知歷史失敗，請稍後再試');
+      clearHistoryButton.disabled = false;
+    } finally {
+      deletionPending = false;
+      await loadNotifications();
+    }
+  });
+  footer.appendChild(clearHistoryButton);
+  notificationsContainer.appendChild(footer);
 }
 
 async function loadNotifications() {
