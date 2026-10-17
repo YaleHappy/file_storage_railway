@@ -321,7 +321,7 @@ html, body {
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
 }
   </style>
-  <link href="responsive.css?v=20261017-9" rel="stylesheet">
+  <link href="responsive.css?v=20261017-10" rel="stylesheet">
 </head>
 <body class="has-fixed-navbar">
 

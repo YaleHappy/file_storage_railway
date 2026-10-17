@@ -513,7 +513,7 @@ function formatChatTime(?string $dateTime): string
       }
     }
   </style>
-  <link href="responsive.css?v=20261017-9" rel="stylesheet">
+  <link href="responsive.css?v=20261017-10" rel="stylesheet">
   <link href="chat_interactions.css?v=20261017-2" rel="stylesheet">
 </head>
 <body class="has-fixed-navbar">

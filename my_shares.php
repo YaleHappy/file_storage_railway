@@ -191,7 +191,7 @@ if (!isset($_SESSION['status']) && isset($_SESSION['user_id'])) {
     .btn-danger { background-color:#e74c3c; border:none; padding:6px 12px; }
     .btn-danger:hover { background-color:#c0392b; }
   </style>
-  <link href="responsive.css?v=20261017-9" rel="stylesheet">
+  <link href="responsive.css?v=20261017-10" rel="stylesheet">
 </head>
 <body class="has-fixed-navbar">
 

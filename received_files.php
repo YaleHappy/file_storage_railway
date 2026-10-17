@@ -94,7 +94,7 @@ $files = $stmt->fetchAll(PDO::FETCH_ASSOC);
       position: relative;
     }
   </style>
-  <link href="responsive.css?v=20261017-9" rel="stylesheet">
+  <link href="responsive.css?v=20261017-10" rel="stylesheet">
 </head>
 <body class="has-fixed-navbar">
 

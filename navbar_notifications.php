@@ -1,6 +1,7 @@
 <div class="dropdown navbar-notifications ms-2">
-  <button class="btn btn-outline-light position-relative" type="button" id="notificationDropdown" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-label="通知">
+  <button class="btn notification-trigger position-relative" type="button" id="notificationDropdown" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-label="通知">
     <span class="notification-bell" aria-hidden="true">🔔</span>
+    <span class="mobile-notification-label">通知</span>
     <span class="position-absolute badge rounded-pill bg-danger notification-badge" style="display:none"><span class="notification-count">0</span><span class="visually-hidden">則未讀通知</span></span>
   </button>
   <div class="dropdown-menu dropdown-menu-end notification-dropdown" aria-labelledby="notificationDropdown">
@@ -11,3 +12,4 @@
     <div class="notifications-container" aria-live="polite"></div>
   </div>
 </div>
+<script src="mobile_navigation.js?v=20261017-1" defer></script>
