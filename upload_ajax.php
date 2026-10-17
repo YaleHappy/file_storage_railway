@@ -7,7 +7,7 @@ ob_start();
 header('Content-Type: application/json; charset=utf-8');
 
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', 0);
 mb_internal_encoding("UTF-8");
 mb_http_output("UTF-8");
 
@@ -35,8 +35,17 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $uploadDir = __DIR__ . '/uploads/';
-if (!file_exists($uploadDir)) {
-    mkdir($uploadDir, 0777, true);
+if (!is_dir($uploadDir) && !@mkdir($uploadDir, 0755, true) && !is_dir($uploadDir)) {
+    error_log('無法建立 uploads 目錄');
+    ob_clean();
+    echo json_encode(["success" => false, "error" => "無法建立上傳目錄，請檢查儲存空間與權限"]);
+    exit;
+}
+if (!is_writable($uploadDir)) {
+    error_log('uploads 目錄無法寫入，請檢查 Volume 的 www-data 權限');
+    ob_clean();
+    echo json_encode(["success" => false, "error" => "上傳目錄無寫入權限，請檢查儲存空間設定"]);
+    exit;
 }
 
 if (!isset($_FILES['files']) || empty($_FILES['files']['name'][0])) {
@@ -91,8 +100,10 @@ for ($i = 0; $i < $totalFiles; $i++) {
         } while (file_exists($targetPath));
     }
 
-    if (!move_uploaded_file($tempPath, $targetPath)) {
-        $errors[] = "檔案 $originalName 無法移動";
+    if (!@move_uploaded_file($tempPath, $targetPath)) {
+        $moveError = error_get_last();
+        error_log('上傳檔案移動失敗：' . ($moveError['message'] ?? 'unknown error'));
+        $errors[] = "檔案 $originalName 無法儲存，請檢查儲存空間與目錄權限";
         continue;
     }
 

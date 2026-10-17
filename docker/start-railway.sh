@@ -10,6 +10,16 @@ if [ "$PORT" -lt 1 ] || [ "$PORT" -gt 65535 ]; then
     exit 1
 fi
 
+# The volume is mounted at runtime, after the image's build-time chown.
+mkdir -p /var/www/html/uploads
+chown -R www-data:www-data /var/www/html/uploads
+chmod 0755 /var/www/html/uploads
+# Verify access as the Apache worker user before serving requests.
+su -s /bin/sh www-data -c 'test -w /var/www/html/uploads' || {
+    echo "Upload storage is not writable by www-data" >&2
+    exit 1
+}
+
 # mod_php requires prefork. Normalize modules in the running container too.
 a2dismod -f mpm_event mpm_worker
 a2enmod mpm_prefork
