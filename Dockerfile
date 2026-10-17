@@ -20,8 +20,9 @@ COPY . /var/www/html/
 # 設定網站檔案權限
 RUN chown -R www-data:www-data /var/www/html
 
-# Railway 動態 PORT
-RUN printf '#!/bin/sh\nset -e\nPORT="${PORT:-8080}"\nsed -i "s/Listen 80/Listen ${PORT}/" /etc/apache2/ports.conf\nsed -i "s/:80>/:${PORT}>/" /etc/apache2/sites-available/000-default.conf\nexec apache2-foreground\n' > /usr/local/bin/start-railway \
+# Railway 啟動時再次檢查 Apache，避免只在建置時檢查。
+COPY docker/start-railway.sh /usr/local/bin/start-railway
+RUN sed -i 's/\r$//' /usr/local/bin/start-railway \
     && chmod +x /usr/local/bin/start-railway
 
 EXPOSE 8080
