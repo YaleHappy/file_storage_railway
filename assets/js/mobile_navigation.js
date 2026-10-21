@@ -18,7 +18,7 @@
     const link = document.createElement('a');
     link.href = href;
     link.className = 'mobile-nav-item';
-    if (href === currentPage) link.setAttribute('aria-current', 'page');
+    if (href === currentPage || (currentPage === 'group_chat.php' && href === 'chat_history.php')) link.setAttribute('aria-current', 'page');
     const symbol = document.createElement('i');
     symbol.className = `bi ${icon}`;
     symbol.setAttribute('aria-hidden', 'true');

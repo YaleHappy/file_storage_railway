@@ -94,7 +94,7 @@ $files = $stmt->fetchAll(PDO::FETCH_ASSOC);
       position: relative;
     }
   </style>
-  <link href="responsive.css?v=20261017-10" rel="stylesheet">
+  <link href="assets/css/responsive.css?v=20261021-1" rel="stylesheet">
 </head>
 <body class="has-fixed-navbar">
 
@@ -255,8 +255,8 @@ function addToMyCloud(id) {
   }
 }
 </script>
-<script src="presence.js?v=20260928-2"></script>
-<script src="message_notifications.js?v=20260928-2"></script>
-<script src="navbar_notifications.js?v=20261017-3"></script>
+<script src="assets/js/presence.js?v=20260928-2"></script>
+<script src="assets/js/message_notifications.js?v=20261021-1"></script>
+<script src="assets/js/navbar_notifications.js?v=20261021-1"></script>
 </body>
 </html>

@@ -9,6 +9,9 @@ if (!isset($_SESSION['user_id'])) {
 
 $currentUserId = (int) $_SESSION['user_id'];
 $_SESSION['chat_csrf'] ??= bin2hex(random_bytes(32));
+require_once __DIR__ . '/group_service.php';
+ensureGroupSchema($pdo);
+$chatGroups = groupList($pdo, $currentUserId);
 $conversationStmt = $pdo->prepare("
     SELECT
         u.user_id,
@@ -513,8 +516,8 @@ function formatChatTime(?string $dateTime): string
       }
     }
   </style>
-  <link href="responsive.css?v=20261017-10" rel="stylesheet">
-  <link href="chat_interactions.css?v=20261017-2" rel="stylesheet">
+  <link href="assets/css/responsive.css?v=20261021-1" rel="stylesheet">
+  <link href="assets/css/chat_interactions.css?v=20261017-2" rel="stylesheet">
 </head>
 <body class="has-fixed-navbar">
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
@@ -555,6 +558,7 @@ function formatChatTime(?string $dateTime): string
   <header class="history-heading">
     <h1><i class="bi bi-chat-left-text me-2"></i>聊天紀錄</h1>
     <p>查看過往對話，或接著傳送訊息。</p>
+    <div class="d-flex gap-2 mt-2"><a class="btn btn-primary btn-sm" href="group_chat.php?create=1">＋ 建立群組</a><a class="btn btn-outline-light btn-sm" href="group_chat.php">管理我的群組</a></div>
   </header>
 
   <section class="history-shell<?= $requestedUserId > 0 && $selectedConversation ? ' conversation-open' : '' ?>" aria-label="聊天紀錄">
@@ -568,7 +572,18 @@ function formatChatTime(?string $dateTime): string
         </div>
       </div>
       <div class="conversation-list" id="conversationList">
-        <?php if (!$conversations): ?>
+        <div id="historyGroupList">
+        <?php foreach ($chatGroups as $chatGroup): ?>
+          <a class="conversation-item" href="group_chat.php?group=<?= (int) $chatGroup['id'] ?>" data-username="<?= htmlspecialchars(mb_strtolower($chatGroup['name'], 'UTF-8')) ?>">
+            <div class="conversation-name-row"><span class="conversation-name">👥 <?= htmlspecialchars($chatGroup['name']) ?></span>
+              <?php if ($chatGroup['unread_count']): ?><span class="badge bg-danger"><?= (int) $chatGroup['unread_count'] ?></span><?php endif; ?>
+            </div>
+            <div class="conversation-preview"><?= htmlspecialchars($chatGroup['last_content'] ?: '開始群組對話') ?></div>
+            <small><?= (int) $chatGroup['member_count'] ?> 位成員<?= $chatGroup['notification_mode'] === 'mute' ? ' · 已靜音' : '' ?></small>
+          </a>
+        <?php endforeach; ?>
+        </div>
+        <?php if (!$conversations && !$chatGroups): ?>
           <div class="conversation-empty">
             <i class="bi bi-chat-square-dots d-block fs-3 mb-2"></i>
             尚無聊天紀錄
@@ -648,7 +663,7 @@ function formatChatTime(?string $dateTime): string
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="chat_message_actions.js?v=20261017-2"></script>
+<script src="assets/js/chat_message_actions.js?v=20261017-2"></script>
 <script>
 const currentUserId = <?= $currentUserId ?>;
 const selectedUserId = <?= $selectedUserId ?>;
@@ -841,8 +856,9 @@ document.querySelectorAll('.status-option').forEach(item => {
 
 
 </script>
-<script src="navbar_notifications.js?v=20261017-3"></script>
-<script src="presence.js?v=20260928-2"></script>
-<script src="message_notifications.js?v=20260928-2"></script>
+<script src="assets/js/navbar_notifications.js?v=20261021-1"></script>
+<script src="assets/js/chat_group_list.js?v=20261021-1"></script>
+<script src="assets/js/presence.js?v=20260928-2"></script>
+<script src="assets/js/message_notifications.js?v=20261021-1"></script>
 </body>
 </html>

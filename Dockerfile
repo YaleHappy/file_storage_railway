@@ -5,6 +5,9 @@ RUN docker-php-ext-install pdo_mysql mysqli
 
 # 啟用 rewrite
 RUN a2enmod rewrite
+COPY docker/uploads-security.conf /etc/apache2/conf-available/uploads-security.conf
+RUN a2enconf uploads-security
+RUN printf 'upload_max_filesize=100M\npost_max_size=110M\nmax_execution_time=300\n' > /usr/local/etc/php/conf.d/uploads.ini
 
 # 確保 Apache 只載入 prefork MPM
 RUN set -eux; \

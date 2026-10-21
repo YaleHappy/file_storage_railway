@@ -191,7 +191,7 @@ if (!isset($_SESSION['status']) && isset($_SESSION['user_id'])) {
     .btn-danger { background-color:#e74c3c; border:none; padding:6px 12px; }
     .btn-danger:hover { background-color:#c0392b; }
   </style>
-  <link href="responsive.css?v=20261017-10" rel="stylesheet">
+  <link href="assets/css/responsive.css?v=20261021-1" rel="stylesheet">
 </head>
 <body class="has-fixed-navbar">
 
@@ -403,8 +403,8 @@ document.querySelectorAll('.password').forEach(input => {
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="presence.js?v=20260928-2"></script>
-<script src="message_notifications.js?v=20260928-2"></script>
-<script src="navbar_notifications.js?v=20261017-3"></script>
+<script src="assets/js/presence.js?v=20260928-2"></script>
+<script src="assets/js/message_notifications.js?v=20261021-1"></script>
+<script src="assets/js/navbar_notifications.js?v=20261021-1"></script>
 </body>
 </html>

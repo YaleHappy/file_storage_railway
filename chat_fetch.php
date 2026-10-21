@@ -21,14 +21,11 @@ if ($recipientId <= 0) {
 $stmt = $pdo->prepare("
   SELECT *
   FROM chat_messages
-  WHERE (sender_id = :me AND recipient_id = :you)
-     OR (sender_id = :you AND recipient_id = :me)
+  WHERE (sender_id = ? AND recipient_id = ?)
+     OR (sender_id = ? AND recipient_id = ?)
   ORDER BY sent_at ASC
 ");
-$stmt->execute([
-  ':me'  => $myId,
-  ':you' => $recipientId
-]);
+$stmt->execute([$myId, $recipientId, $recipientId, $myId]);
 $messages = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // 4) 回傳 JSON

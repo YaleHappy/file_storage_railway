@@ -65,7 +65,7 @@
 
       initialized = true;
       const newMessageExists = notifications.some(item =>
-        item.type === 'message' && Number(item.id) > storedId
+        item.type === 'message' && Number(item.id) > storedId && Number(item.is_read) === 0
       );
 
       if (latestId > storedId) {

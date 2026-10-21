@@ -91,7 +91,7 @@ function doDownload($fileRow) {
             width: 100%;
         }
     </style>
-  <link href="responsive.css?v=20260928-7" rel="stylesheet">
+  <link href="assets/css/responsive.css?v=20260928-7" rel="stylesheet">
 </head>
 <body>
 <div class="container py-5">

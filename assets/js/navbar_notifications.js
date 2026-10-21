@@ -35,7 +35,7 @@ function renderNotifications(notifications) {
     row.className = 'd-flex align-items-start';
     const icon = document.createElement('div');
     icon.className = 'notification-icon me-2';
-    icon.textContent = notification.type === 'file' ? '📎' : (notification.type === 'system' ? '⚙️' : '💬');
+    icon.textContent = notification.group_id ? '👥' : (notification.type === 'file' ? '📎' : (notification.type === 'system' ? '⚙️' : '💬'));
     const content = document.createElement('div');
     content.className = 'notification-content flex-grow-1';
     const message = document.createElement('div');
@@ -73,11 +73,28 @@ function renderNotifications(notifications) {
         await loadNotifications();
       }
     });
-    row.append(icon, content, deleteButton);
+    const readButton = document.createElement('button');
+    readButton.type = 'button';
+    readButton.className = 'btn btn-sm text-light flex-shrink-0';
+    readButton.textContent = '✓';
+    readButton.title = '標記為已讀';
+    readButton.setAttribute('aria-label', '標記為已讀');
+    readButton.addEventListener('click', async event => {
+      event.preventDefault(); event.stopPropagation();
+      readButton.disabled = true;
+      try {
+        const body = new FormData(); body.append('notification_id', notification.id);
+        const response = await fetch('mark_notifications_read.php', { method: 'POST', body });
+        const data = await response.json();
+        if (!data.success) throw new Error(data.msg || '無法標記已讀');
+        await loadNotifications();
+      } catch (error) { window.alert(error.message); readButton.disabled = false; }
+    });
+    row.append(icon, content, readButton, deleteButton);
     item.appendChild(row);
 
     const openNotification = () => {
-      const target = notification.type === 'message'
+      const target = notification.group_id ? `group_chat.php?group=${Number(notification.group_id)}` : notification.type === 'message'
         ? `chat_history.php?user=${Number(notification.sender_id)}`
         : (notification.type === 'file' ? 'received_files.php' : '');
       if (target) window.location.href = target;
@@ -167,5 +184,7 @@ notificationDropdown.addEventListener('shown.bs.dropdown', () => {
 });
 
 loadNotifications();
+window.refreshNotifications = loadNotifications;
+window.addEventListener('focus', loadNotifications);
 window.setInterval(loadNotifications, 10000);
 })();

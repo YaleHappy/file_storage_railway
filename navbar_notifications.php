@@ -12,4 +12,4 @@
     <div class="notifications-container" aria-live="polite"></div>
   </div>
 </div>
-<script src="mobile_navigation.js?v=20261017-1" defer></script>
+<script src="assets/js/mobile_navigation.js?v=20261021-1" defer></script>

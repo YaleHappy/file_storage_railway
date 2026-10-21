@@ -1,0 +1,13 @@
+.git
+.agents
+.codex
+.env
+.env.*
+tests
+migrations
+GROUPS_V3.md
+*.sql
+*.log
+debug_log.txt
+uploads/*
+!uploads/.gitkeep

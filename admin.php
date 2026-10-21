@@ -834,7 +834,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'editUser') {
     .text-danger { color: #dc3545 !important; }
     .text-primary { color: #0d6efd !important; }
   </style>
-  <link href="responsive.css?v=20260928-7" rel="stylesheet">
+  <link href="assets/css/responsive.css?v=20260928-7" rel="stylesheet">
 </head>
 <body class="admin-page">
 
@@ -1722,7 +1722,7 @@ document.querySelectorAll('.edit-user-btn').forEach(btn => {
   });
 });
 </script>
-<script src="presence.js?v=20260928-2"></script>
-<script src="message_notifications.js?v=20260928-2"></script>
+<script src="assets/js/presence.js?v=20260928-2"></script>
+<script src="assets/js/message_notifications.js?v=20260928-2"></script>
 </body>
 </html>

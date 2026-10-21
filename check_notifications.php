@@ -10,16 +10,20 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 try {
+    require_once __DIR__ . '/group_schema.php';
+    ensureGroupSchema($pdo);
     $userId = $_SESSION['user_id'];
     
     // 使用 MySQL/MariaDB 相容語法，避免 PostgreSQL 的 FILTER 導致原生 prepare 失敗。
     $stmt = $pdo->prepare("
         SELECT 
-            COALESCE(SUM(CASE WHEN type = 'message' AND is_read = 0 THEN 1 ELSE 0 END), 0) AS unread_messages,
-            COALESCE(SUM(CASE WHEN type = 'file' AND is_read = 0 THEN 1 ELSE 0 END), 0) AS unread_files,
-            COALESCE(SUM(CASE WHEN is_read = 0 THEN 1 ELSE 0 END), 0) AS total_unread
-        FROM notifications 
-        WHERE recipient_id = ?
+            COALESCE(SUM(CASE WHEN n.type = 'message' AND n.is_read = 0 THEN 1 ELSE 0 END), 0) AS unread_messages,
+            COALESCE(SUM(CASE WHEN n.type = 'file' AND n.is_read = 0 THEN 1 ELSE 0 END), 0) AS unread_files,
+            COALESCE(SUM(CASE WHEN n.is_read = 0 THEN 1 ELSE 0 END), 0) AS total_unread
+        FROM notifications n
+        LEFT JOIN chat_group_notification_links gl ON gl.notification_id = n.id
+        LEFT JOIN chat_group_members gm ON gm.group_id = gl.group_id AND gm.user_id = n.recipient_id
+        WHERE n.recipient_id = ? AND (gl.notification_id IS NULL OR gm.user_id IS NOT NULL)
     ");
     
     $stmt->execute([$userId]);
@@ -27,11 +31,13 @@ try {
     
     // 獲取最近10條通知
     $notifStmt = $pdo->prepare("
-        SELECT n.id, n.sender_id, n.type, n.message, n.created_at, u.username as sender_name
+        SELECT n.id, n.sender_id, n.type, n.message, n.created_at, n.is_read, u.username as sender_name, gl.group_id
         FROM notifications n
         LEFT JOIN users u ON n.sender_id = u.user_id
-        WHERE n.recipient_id = ?
-        ORDER BY n.created_at DESC
+        LEFT JOIN chat_group_notification_links gl ON gl.notification_id = n.id
+        LEFT JOIN chat_group_members gm ON gm.group_id = gl.group_id AND gm.user_id = n.recipient_id
+        WHERE n.recipient_id = ? AND (gl.notification_id IS NULL OR gm.user_id IS NOT NULL)
+        ORDER BY n.created_at DESC, n.id DESC
         LIMIT 10
     ");
     $notifStmt->execute([$userId]);
@@ -50,7 +56,7 @@ try {
     http_response_code(500);
     echo json_encode([
         "success" => false,
-        "msg" => "數據庫錯誤：" . $e->getMessage()
+        "msg" => "暫時無法載入通知，請稍後重試"
     ]);
 }
 exit;

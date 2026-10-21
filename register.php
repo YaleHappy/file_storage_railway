@@ -123,7 +123,7 @@ if (isset($_POST['register'])) {
       margin-bottom: 1rem;
     }
   </style>
-  <link href="responsive.css?v=20260928-7" rel="stylesheet">
+  <link href="assets/css/responsive.css?v=20260928-7" rel="stylesheet">
 </head>
 <body class="auth-page">
 <div class="register-container">

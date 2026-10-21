@@ -130,7 +130,7 @@ if (isset($_POST['login'])) {
       margin-bottom: 1.5rem;
     }
   </style>
-  <link href="responsive.css?v=20260928-7" rel="stylesheet">
+  <link href="assets/css/responsive.css?v=20260928-7" rel="stylesheet">
 </head>
 <body class="auth-page">
   <div class="login-container">

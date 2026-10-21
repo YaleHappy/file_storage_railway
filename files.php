@@ -895,7 +895,7 @@ if ($user_id) {
 
 
     <link
-        href="responsive.css?v=20260928-7"
+        href="assets/css/responsive.css?v=20260928-7"
         rel="stylesheet"
     >
 
