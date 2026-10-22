@@ -1,0 +1,30 @@
+<?php
+require __DIR__.'/../admin_service.php';
+require __DIR__.'/../admin_data.php';
+$pdo=new PDO('sqlite::memory:',null,null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
+$pdo->exec("CREATE TABLE users(user_id INTEGER,username TEXT);CREATE TABLE folders(folder_id INTEGER,user_id INTEGER,folder_name TEXT,parent_folder INTEGER,created_at TEXT);CREATE TABLE files(file_id INTEGER,user_id INTEGER,folder_id INTEGER,original_filename TEXT,file_size INTEGER,created_at TEXT);
+INSERT INTO users VALUES(1,'one'),(2,'two');
+INSERT INTO folders VALUES(1,1,'工作',NULL,''),(2,1,'文件',1,''),(3,1,'生活',0,''),(4,1,'文件',3,''),(5,2,'別人的資料夾',0,'');
+INSERT INTO files VALUES(1,1,2,'same.txt',12,''),(2,1,4,'same.txt',12,''),(3,2,5,'same.txt',12,'');");
+$checks=0;
+function checkStorage($ok){global $checks;if(!$ok)throw new RuntimeException('Storage assertion failed #'.($checks+1));$checks++;}
+checkStorage(adminStoragePath($pdo,1,2)==='我的雲端 / 工作 / 文件');
+checkStorage(adminStoragePath($pdo,1,4)==='我的雲端 / 生活 / 文件');
+checkStorage(adminFolderTrail($pdo,1,5)===[]);
+$root=adminListData($pdo,'folders','',1,1,0);
+checkStorage($root['total']===2);
+$child=adminListData($pdo,'folders','',1,1,1)['items'][0];
+checkStorage((int)$child['id']===2 && $child['file_count']===1 && $child['child_count']===0);
+$files=adminListData($pdo,'files','same',1,1,2);
+checkStorage($files['total']===1 && (int)$files['items'][0]['id']===1);
+checkStorage($files['items'][0]['full_path']==='我的雲端 / 工作 / 文件');
+checkStorage(adminListData($pdo,'user_files','same',1,1)['total']===2);
+$mixed=adminStorageListData($pdo,'',1,1,1);
+checkStorage($mixed['total']===1 && $mixed['items'][0]['kind']==='folders');
+$mixed=adminStorageListData($pdo,'same',1,1,null);
+checkStorage($mixed['total']===2 && count(array_unique(array_column($mixed['items'],'full_path')))===2);
+$mixed=adminStorageListData($pdo,'',1,1,0);
+checkStorage($mixed['total']===2 && count(array_filter($mixed['items'],fn($row)=>(int)$row['user_id']!==1))===0);
+$pdo->exec('UPDATE folders SET parent_folder=2 WHERE folder_id=1');
+checkStorage(count(adminFolderTrail($pdo,1,2))===2);
+echo "Admin storage: $checks checks passed (same names, ownership, nesting, counts, root and cycle protection).\n";

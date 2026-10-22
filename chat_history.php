@@ -1,6 +1,6 @@
 <?php
 session_start();
-require 'config.php';
+require_once __DIR__ . '/config.php';
 
 if (!isset($_SESSION['user_id'])) {
     header('Location: login.php');
@@ -8,7 +8,11 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $currentUserId = (int) $_SESSION['user_id'];
+require_once __DIR__ . '/file_cleanup.php';
+cleanupMissingSharedFiles($pdo, $currentUserId);
 $_SESSION['chat_csrf'] ??= bin2hex(random_bytes(32));
+$groupMode = isset($_GET['group']) || isset($_GET['create']) || isset($_GET['groups']);
+$selectedGroupId = max(0, (int) ($_GET['group'] ?? 0));
 require_once __DIR__ . '/group_service.php';
 ensureGroupSchema($pdo);
 $chatGroups = groupList($pdo, $currentUserId);
@@ -231,7 +235,7 @@ function formatChatTime(?string $dateTime): string
       margin-bottom: 0;
     }
     .conversation-item:hover,
-    .conversation-item:focus {
+    .conversation-item:focus-visible {
       color: #fff;
       background: #343768;
       border-color: #747bb4;
@@ -516,10 +520,12 @@ function formatChatTime(?string $dateTime): string
       }
     }
   </style>
-  <link href="assets/css/responsive.css?v=20261021-1" rel="stylesheet">
-  <link href="assets/css/chat_interactions.css?v=20261017-2" rel="stylesheet">
+  <link href="assets/css/responsive.css?v=20261022-2" rel="stylesheet">
+  <link href="assets/css/chat_interactions.css?v=20261022-4" rel="stylesheet">
+  <?php if ($groupMode): ?><link href="assets/css/group_chat.css?v=20261022-6" rel="stylesheet"><?php endif; ?>
+  <link href="assets/css/chat_typography.css?v=20261022-2" rel="stylesheet">
 </head>
-<body class="has-fixed-navbar">
+<body class="has-fixed-navbar<?= $groupMode ? ' group-page' : '' ?>">
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
   <div class="container">
     <a class="navbar-brand fw-bold" href="index.php">☁️ 雲上聊頁來</a>
@@ -555,13 +561,14 @@ function formatChatTime(?string $dateTime): string
 </nav>
 
 <main class="container history-page">
+  <?php if ($groupMode): ?><div id="groupError" class="alert alert-danger" role="alert" hidden></div><?php endif; ?>
   <header class="history-heading">
     <h1><i class="bi bi-chat-left-text me-2"></i>聊天紀錄</h1>
     <p>查看過往對話，或接著傳送訊息。</p>
-    <div class="d-flex gap-2 mt-2"><a class="btn btn-primary btn-sm" href="group_chat.php?create=1">＋ 建立群組</a><a class="btn btn-outline-light btn-sm" href="group_chat.php">管理我的群組</a></div>
+    <div class="d-flex gap-2 mt-2"><a id="createGroup" class="btn btn-primary btn-sm" href="chat_history.php?create=1">＋ 建立群組</a></div>
   </header>
 
-  <section class="history-shell<?= $requestedUserId > 0 && $selectedConversation ? ' conversation-open' : '' ?>" aria-label="聊天紀錄">
+  <section id="groupShell" class="history-shell<?= ($groupMode ? $selectedGroupId > 0 : $requestedUserId > 0 && $selectedConversation) ? ' conversation-open' : '' ?>" aria-label="聊天紀錄">
     <aside class="conversation-panel">
       <div class="conversation-toolbar">
         <h2>最近對話</h2>
@@ -574,7 +581,7 @@ function formatChatTime(?string $dateTime): string
       <div class="conversation-list" id="conversationList">
         <div id="historyGroupList">
         <?php foreach ($chatGroups as $chatGroup): ?>
-          <a class="conversation-item" href="group_chat.php?group=<?= (int) $chatGroup['id'] ?>" data-username="<?= htmlspecialchars(mb_strtolower($chatGroup['name'], 'UTF-8')) ?>">
+          <a class="conversation-item<?= (int) $chatGroup['id'] === $selectedGroupId ? ' active' : '' ?>" href="chat_history.php?group=<?= (int) $chatGroup['id'] ?>" data-username="<?= htmlspecialchars(mb_strtolower($chatGroup['name'], 'UTF-8')) ?>">
             <div class="conversation-name-row"><span class="conversation-name">👥 <?= htmlspecialchars($chatGroup['name']) ?></span>
               <?php if ($chatGroup['unread_count']): ?><span class="badge bg-danger"><?= (int) $chatGroup['unread_count'] ?></span><?php endif; ?>
             </div>
@@ -590,7 +597,7 @@ function formatChatTime(?string $dateTime): string
           </div>
         <?php else: ?>
           <?php foreach ($conversations as $conversation): ?>
-            <?php $isActive = (int) $conversation['user_id'] === $selectedUserId; ?>
+            <?php $isActive = !$groupMode && (int) $conversation['user_id'] === $selectedUserId; ?>
             <a class="conversation-item<?= $isActive ? ' active' : '' ?>" href="chat_history.php?user=<?= (int) $conversation['user_id'] ?>" data-username="<?= htmlspecialchars(mb_strtolower($conversation['username'], 'UTF-8')) ?>">
               <div class="conversation-name-row">
                 <span class="conversation-name"><span class="status-dot <?= htmlspecialchars($conversation['status']) ?>" data-presence-user="<?= (int) $conversation['user_id'] ?>" aria-label="使用者狀態"></span><?= htmlspecialchars($conversation['username']) ?></span>
@@ -603,6 +610,10 @@ function formatChatTime(?string $dateTime): string
       </div>
     </aside>
 
+    <?php if ($groupMode): ?>
+      <?php require __DIR__ . '/partials/group_room.php'; ?>
+      <div id="groupEmpty" class="group-empty">選擇群組，或按「建立群組」開始。</div>
+    <?php else: ?>
     <div class="chat-panel">
       <?php if ($selectedConversation): ?>
         <div class="chat-header">
@@ -611,8 +622,9 @@ function formatChatTime(?string $dateTime): string
             <h2><?= htmlspecialchars($selectedConversation['username']) ?></h2>
             <small><?= (int) $selectedConversation['message_count'] ?> 則訊息 · <?= (int) $selectedConversation['file_count'] ?> 個檔案</small>
           </div>
-          <a class="btn btn-sm btn-outline-light" href="index.php" title="回到檔案首頁"><i class="bi bi-house-door me-1"></i>首頁</a>
+          <button class="chat-search-trigger" type="button" data-chat-search aria-label="搜尋聊天紀錄"><span>搜尋聊天紀錄</span><i class="bi bi-search" aria-hidden="true"></i></button>
         </div>
+        <div id="privatePins" class="private-pins" hidden></div>
         <div class="chat-messages" id="chatMessages" aria-live="polite">
           <?php if (!$timelineEvents): ?>
             <div class="new-conversation-hint" id="newConversationHint">
@@ -631,11 +643,10 @@ function formatChatTime(?string $dateTime): string
                     <span class="file-event-name"><?= htmlspecialchars($event['original_filename'] ?: '未命名檔案') ?></span>
                   </div>
                   <div class="file-event-note"><?= $isSent ? '你傳送了這個檔案' : '對方傳送了這個檔案給你' ?></div>
-                  <?php if (!$isSent): ?>
                     <div class="file-event-actions">
-                      <a class="btn btn-sm btn-light" href="download_shared_file.php?id=<?= (int) $event['event_id'] ?>"><i class="bi bi-download me-1"></i>下載檔案</a>
+                      <a class="btn btn-sm btn-light" href="download_shared_file.php?id=<?= (int) $event['event_id'] ?>"><i class="bi bi-download me-1"></i>下載</a>
+                      <button class="btn btn-sm btn-outline-light" type="button" data-save-cloud="<?= (int)$event['event_id'] ?>"><i class="bi bi-cloud-plus me-1" aria-hidden="true"></i>存到雲端</button>
                     </div>
-                  <?php endif; ?>
                 <?php else: ?>
                   <div class="message-text"><?= htmlspecialchars($event['content']) ?></div>
                 <?php endif; ?>
@@ -644,7 +655,9 @@ function formatChatTime(?string $dateTime): string
             </div>
           <?php endforeach; ?>
         </div>
+        <div id="privateReplyPreview" class="private-reply-preview" hidden><span id="privateReplyText"></span><button type="button" class="btn btn-sm btn-outline-light" id="cancelPrivateReply">取消回覆</button></div>
         <form class="chat-composer" id="chatForm">
+          <button class="btn btn-outline-light flex-shrink-0" type="button" id="attachPrivateFile" aria-label="傳送檔案">📎</button>
           <label class="visually-hidden" for="chatInput">輸入訊息</label>
           <input class="form-control" id="chatInput" type="text" maxlength="2000" placeholder="輸入訊息..." autocomplete="off" required>
           <button class="btn btn-primary flex-shrink-0" type="submit" id="sendButton"><i class="bi bi-send me-1"></i>傳送</button>
@@ -659,11 +672,16 @@ function formatChatTime(?string $dateTime): string
         </div>
       <?php endif; ?>
     </div>
+    <?php endif; ?>
   </section>
 </main>
+<?php if ($groupMode): ?>
+<?php require __DIR__ . '/partials/group_dialogs.php'; ?>
+<script>window.groupBoot = <?= json_encode(['userId' => $currentUserId, 'groupId' => $selectedGroupId, 'csrf' => $_SESSION['chat_csrf'], 'create' => isset($_GET['create'])], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;</script>
+<?php endif; ?>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="assets/js/chat_message_actions.js?v=20261017-2"></script>
+<script src="assets/js/chat_message_actions.js?v=20261021-9"></script>
 <script>
 const currentUserId = <?= $currentUserId ?>;
 const selectedUserId = <?= $selectedUserId ?>;
@@ -675,9 +693,27 @@ const sendButton = document.getElementById('sendButton');
 const messageActions = chatMessages ? window.installChatMessageActions({
   container: chatMessages,
   csrfToken: <?= json_encode($_SESSION['chat_csrf']) ?>,
-  onChange: () => refreshTimeline(true)
+  onChange: () => refreshTimeline(true),
+  onReply: target => { privateReply = target; document.getElementById('privateReplyPreview').hidden = false; document.getElementById('privateReplyText').textContent = '回覆：' + target.text; chatInput.focus(); }
 }) : null;
+const privateCloudSaved = new Set(), privateCloudPending = new Set();
+chatMessages?.addEventListener('click', async event => {
+  const button = event.target.closest('[data-save-cloud]'); if (!button) return;
+  event.preventDefault(); event.stopPropagation();
+  const id = Number(button.dataset.saveCloud);
+  if (privateCloudPending.has(id) || privateCloudSaved.has(id)) return;
+  privateCloudPending.add(id); button.disabled = true;
+  try {
+    const response = await fetch('add_to_my_cloud.php?id=' + id, {cache:'no-store'}), data = await response.json();
+    if (!response.ok || !data.success) throw new Error(data.msg || '儲存失敗');
+    privateCloudSaved.add(id); button.textContent = '已存到雲端';
+    chatMessages.querySelectorAll('[data-save-cloud="'+id+'"]').forEach(node=>{node.disabled=true;node.textContent='已存到雲端';});
+  } catch (error) { button.disabled = false; alert(error.message || '儲存失敗'); }
+  finally { privateCloudPending.delete(id); }
+});
 let timelineSignature = null;
+let privateReply = null;
+document.getElementById('cancelPrivateReply')?.addEventListener('click', () => { privateReply = null; document.getElementById('privateReplyPreview').hidden = true; });
 
 function formatMessageTime(value) {
   if (!value) return '';
@@ -708,14 +744,18 @@ function renderTimeline(events, keepScrollPosition = false) {
 
     const bubble = document.createElement('div');
     bubble.className = `message-bubble${event.event_type === 'file' ? ' file-bubble' : ''}`;
-    if (isSent) {
+    {
+      bubble.dataset.sent = String(isSent);
+      bubble.dataset.pinned = String(event.pinned || 0);
       bubble.dataset.messageId = Number(event.event_id);
       bubble.dataset.eventType = event.event_type;
       bubble.tabIndex = 0;
-      bubble.setAttribute('aria-label', event.event_type === 'file'
-        ? '你傳送的檔案，右鍵或長按可收回' : '你傳送的訊息，右鍵或長按可編輯或收回');
+      bubble.setAttribute('aria-label', (isSent ? '你傳送的' : '收到的') + (event.event_type === 'file' ? '檔案' : '訊息') + '，右鍵或長按可操作');
     }
 
+    if (event.reply) {
+      const quote = document.createElement('div'); quote.className = 'private-quote'; quote.textContent = '回覆：' + event.reply.content; bubble.append(quote);
+    }
     if (event.event_type === 'file') {
       const title = document.createElement('div');
       title.className = 'file-event-title';
@@ -731,14 +771,18 @@ function renderTimeline(events, keepScrollPosition = false) {
       note.textContent = isSent ? '你傳送了這個檔案' : '對方傳送了這個檔案給你';
       bubble.append(title, note);
 
-      if (!isSent) {
+      {
         const actions = document.createElement('div');
         actions.className = 'file-event-actions';
         const download = document.createElement('a');
         download.className = 'btn btn-sm btn-light';
         download.href = `download_shared_file.php?id=${Number(event.event_id)}`;
-        download.innerHTML = '<i class="bi bi-download me-1"></i>下載檔案';
-        actions.appendChild(download);
+        download.innerHTML = '<i class="bi bi-download me-1"></i>下載';
+        const save = document.createElement('button'); save.type = 'button'; save.className = 'btn btn-sm btn-outline-light';
+        save.dataset.saveCloud = Number(event.event_id);
+        save.textContent = privateCloudSaved.has(Number(event.event_id)) ? '已存到雲端' : '存到雲端';
+        save.disabled = privateCloudSaved.has(Number(event.event_id)) || privateCloudPending.has(Number(event.event_id));
+        actions.append(download, save);
         bubble.appendChild(actions);
       }
     } else {
@@ -754,9 +798,19 @@ function renderTimeline(events, keepScrollPosition = false) {
 
     bubble.appendChild(time);
     row.appendChild(bubble);
+    messageActions?.decorate(row, bubble, event, currentUserId);
     chatMessages.appendChild(row);
   });
 
+  const pins = document.getElementById('privatePins');
+  if (pins) {
+    pins.replaceChildren(...events.filter(item => Number(item.pinned)).map(item => {
+      const link = document.createElement('button'); link.type = 'button'; link.textContent = '📌 ' + (item.content || item.original_filename);
+      link.addEventListener('click', () => { const target = [...chatMessages.querySelectorAll('[data-message-id]')].find(node => Number(node.dataset.messageId) === Number(item.event_id) && node.dataset.eventType === item.event_type); target?.scrollIntoView({block:'center'}); });
+      return link;
+    }));
+    pins.hidden = !pins.childElementCount;
+  }
   if (!keepScrollPosition || wasNearBottom) {
     chatMessages.scrollTop = chatMessages.scrollHeight;
   } else {
@@ -785,8 +839,18 @@ async function refreshTimeline(keepScrollPosition = true) {
 
 if (chatMessages) {
   chatMessages.scrollTop = chatMessages.scrollHeight;
+  refreshTimeline(true);
   window.setInterval(() => refreshTimeline(true), 5000);
 }
+
+document.getElementById('attachPrivateFile')?.addEventListener('click', () => {
+  window.dispatchEvent(new CustomEvent('open-user-file', {detail:{user_id:selectedUserId,username:<?= json_encode($selectedConversation['username'] ?? '', JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>}}));
+});
+window.addEventListener('private-file-sent', event => {
+  if (Number(event.detail.recipientId) !== selectedUserId || !chatMessages) return;
+  if (isNewConversation) { location.reload(); return; }
+  refreshTimeline(false);
+});
 
 if (chatForm) {
   chatForm.addEventListener('submit', async event => {
@@ -796,6 +860,7 @@ if (chatForm) {
 
     sendButton.disabled = true;
     const body = new URLSearchParams({ recipient_id: selectedUserId, message });
+    if (privateReply) { body.set('reply_id', privateReply.id); body.set('reply_type', privateReply.type); }
     try {
       const response = await fetch('chat_send.php', {
         method: 'POST',
@@ -804,7 +869,7 @@ if (chatForm) {
       });
       const data = await response.json();
       if (!data.success) throw new Error(data.msg || '訊息傳送失敗');
-      chatInput.value = '';
+      chatInput.value = ''; privateReply = null; document.getElementById('privateReplyPreview').hidden = true;
       if (isNewConversation) {
         window.location.reload();
         return;
@@ -856,9 +921,16 @@ document.querySelectorAll('.status-option').forEach(item => {
 
 
 </script>
-<script src="assets/js/navbar_notifications.js?v=20261021-1"></script>
-<script src="assets/js/chat_group_list.js?v=20261021-1"></script>
+<script src="assets/js/navbar_notifications.js?v=20261022-1"></script>
+<?php if ($groupMode): ?>
+<script src="assets/js/group_chat.js?v=20261022-7"></script>
+<?php else: ?>
+<script src="assets/js/chat_group_list.js?v=20261021-2"></script>
+<?php endif; ?>
 <script src="assets/js/presence.js?v=20260928-2"></script>
-<script src="assets/js/message_notifications.js?v=20261021-1"></script>
+<script src="assets/js/message_notifications.js?v=20261021-5"></script>
+<?php require __DIR__ . '/partials/online_users.php'; ?>
+<?php if (($groupMode && $selectedGroupId > 0) || (!$groupMode && $selectedConversation)): ?><?php require __DIR__ . '/partials/chat_search.php'; ?><?php endif; ?>
+<script src="assets/js/chat_viewport.js?v=20261021-1"></script>
 </body>
 </html>

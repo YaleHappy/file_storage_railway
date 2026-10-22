@@ -1,5 +1,5 @@
 <?php
-require 'config.php';
+require_once __DIR__ . '/config.php';
 date_default_timezone_set('Asia/Taipei');
 
 // 1) 取得 token、download 參數
@@ -14,7 +14,7 @@ if (!$token) {
 } else {
     // 查詢分享紀錄 & 檔案資訊
     $stmt = $pdo->prepare("
-        SELECT f.original_filename, f.stored_filename,
+        SELECT f.file_id, f.user_id, f.original_filename, f.stored_filename,
                s.expires_at, s.share_password
         FROM files f
         JOIN file_shares s USING(file_id)
@@ -22,6 +22,11 @@ if (!$token) {
     ");
     $stmt->execute([$token]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($row && !is_file(__DIR__ . '/uploads/' . $row['stored_filename'])) {
+        require_once __DIR__ . '/file_cleanup.php';
+        cleanupMissingUserFiles($pdo, (int) $row['user_id'], (int) $row['file_id']);
+        $row = null;
+    }
 
     if (!$row) {
         $error = "分享連結不存在或已失效。";
@@ -91,7 +96,8 @@ function doDownload($fileRow) {
             width: 100%;
         }
     </style>
-  <link href="assets/css/responsive.css?v=20260928-7" rel="stylesheet">
+  <link href="assets/css/responsive.css?v=20261022-2" rel="stylesheet">
+<link href="assets/css/share_theme.css?v=20261022-1" rel="stylesheet">
 </head>
 <body>
 <div class="container py-5">

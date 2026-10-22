@@ -1,0 +1,13 @@
+body:not(.home-page) { background:#181a2f; color:#e8ecfb; color-scheme:dark; }
+body:not(.home-page) .card { background:#252842; color:#e8ecfb; border:1px solid #4a5274; border-radius:18px; box-shadow:0 14px 40px #0003; }
+body:not(.home-page) .card-body { padding:28px; }
+body:not(.home-page) .card-title { line-height:1.6; overflow-wrap:anywhere; }
+body:not(.home-page) .text-muted { color:#aeb8d4!important; }
+body:not(.home-page) .btn-success,body:not(.home-page) .btn-primary { background:#4267a5; border-color:#557bb8; }
+body:not(.home-page) .btn-secondary { background:#363e58; border-color:#59617d; }
+body:not(.home-page) .form-control, #shareModal .form-control { background:#191c30; color:#edf0ff; border-color:#5c6485; }
+body:not(.home-page) .form-control:focus, #shareModal .form-control:focus { background:#191c30; color:#fff; }
+#shareModal .modal-content { color-scheme:dark; background:#252842; color:#e8ecfb; border:1px solid #586181; border-radius:16px; }
+#shareModal .modal-header,#shareModal .modal-footer { border-color:#454c6b; }
+#shareModal .btn-close { filter:invert(1) grayscale(1); }
+#shareModal .btn-warning { background:#4267a5; border-color:#557bb8; color:#fff; }

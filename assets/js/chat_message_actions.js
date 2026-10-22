@@ -1,10 +1,17 @@
-window.installChatMessageActions = function({ container, csrfToken, onChange }) {
+window.installChatMessageActions = function({ container, csrfToken, onChange, onReply }) {
   const menu = document.createElement('div');
   menu.className = 'message-action-menu';
   menu.hidden = true;
   menu.setAttribute('role', 'menu');
   menu.setAttribute('aria-label', '訊息操作');
-  menu.innerHTML = '<button type="button" role="menuitem" data-action="edit">編輯訊息</button><button type="button" role="menuitem" data-action="recall">收回訊息</button>';
+  menu.innerHTML = '<button type="button" role="menuitem" data-action="reply">↩ 回覆訊息</button><button type="button" role="menuitem" data-action="pin">📌 置頂訊息</button><button type="button" role="menuitem" data-action="edit">✎ 編輯訊息</button><button type="button" role="menuitem" data-action="recall">收回訊息</button>';
+  const reactionMenu = document.createElement('div'); reactionMenu.className = 'message-action-menu private-reaction-picker'; reactionMenu.hidden = true;
+  reactionMenu.setAttribute('aria-label', '選擇表情反應');
+  for (const emoji of ['👍','❤️','😂','😮','😢','🙏']) {
+    const button = document.createElement('button'); button.type = 'button'; button.textContent = emoji;
+    button.addEventListener('click', () => { reactionMenu.hidden = true; mutate('react', '', emoji); }); reactionMenu.append(button);
+  }
+  document.body.append(reactionMenu);
   document.body.appendChild(menu);
 
   const editor = document.createElement('dialog');
@@ -23,15 +30,18 @@ window.installChatMessageActions = function({ container, csrfToken, onChange }) 
 
   function closeMenu() {
     menu.hidden = true;
+    reactionMenu.hidden = true;
   }
   function showMenu(bubble, x, y) {
     if (pending || editor.open) return;
     selected = {
       id: bubble.dataset.messageId,
       type: bubble.dataset.eventType || 'message',
-      text: bubble.querySelector('.message-text')?.textContent || ''
+      text: bubble.querySelector('.message-text, .file-event-name')?.textContent || ''
     };
-    menu.querySelector('[data-action="edit"]').hidden = selected.type === 'file';
+    menu.querySelector('[data-action="edit"]').hidden = selected.type === 'file' || bubble.dataset.sent !== 'true';
+    menu.querySelector('[data-action="recall"]').hidden = bubble.dataset.sent !== 'true';
+    menu.querySelector('[data-action="pin"]').textContent = Number(bubble.dataset.pinned) ? '📌 取消置頂' : '📌 置頂訊息';
     menu.querySelector('[data-action="recall"]').textContent = selected.type === 'file' ? '收回檔案' : '收回訊息';
     restoreFocus = bubble;
     menu.hidden = false;
@@ -53,7 +63,7 @@ window.installChatMessageActions = function({ container, csrfToken, onChange }) 
   });
   container.addEventListener('pointerdown', event => {
     cancelPress();
-    if (event.pointerType === 'mouse' || !event.isPrimary) return;
+    if (event.pointerType === 'mouse' || !event.isPrimary || event.target.closest('button,a')) return;
     const bubble = event.target.closest('[data-message-id]');
     if (!bubble) return;
     const { clientX: x, clientY: y } = event;
@@ -70,8 +80,9 @@ window.installChatMessageActions = function({ container, csrfToken, onChange }) 
   document.addEventListener('pointercancel', cancelPress);
   document.addEventListener('scroll', () => { cancelPress(); closeMenu(); }, true);
   window.addEventListener('resize', closeMenu);
+  document.addEventListener('keydown', event => { if (event.key === 'Escape') closeMenu(); });
   document.addEventListener('pointerdown', event => {
-    if (!menu.contains(event.target)) closeMenu();
+    if (!menu.contains(event.target) && !reactionMenu.contains(event.target)) closeMenu();
   });
   container.addEventListener('click', event => {
     if (Date.now() < suppressClickUntil) {
@@ -99,13 +110,13 @@ window.installChatMessageActions = function({ container, csrfToken, onChange }) 
     }
   });
 
-  async function mutate(action, message = '') {
+  async function mutate(action, message = '', emoji = '') {
     if (!selected || pending) return false;
     pending = true;
     revision++;
     saveButton.disabled = true;
     try {
-      const body = new URLSearchParams({ action, message, message_id: selected.id, event_type: selected.type, csrf_token: csrfToken });
+      const body = new URLSearchParams({ action, message, emoji, message_id: selected.id, event_type: selected.type, csrf_token: csrfToken });
       const response = await fetch('chat_message_action.php', { method: 'POST', body });
       const data = await response.json();
       if (!response.ok || !data.success) throw new Error(data.msg || '訊息操作失敗');
@@ -124,7 +135,11 @@ window.installChatMessageActions = function({ container, csrfToken, onChange }) 
     const button = event.target.closest('[data-action]');
     if (!button || !selected) return;
     closeMenu();
-    if (button.dataset.action === 'edit' && selected.type === 'message') {
+    if (button.dataset.action === 'reply') {
+      onReply?.({...selected});
+    } else if (button.dataset.action === 'pin') {
+      await mutate('pin');
+    } else if (button.dataset.action === 'edit' && selected.type === 'message') {
       textarea.value = selected.text;
       editor.showModal();
       textarea.focus();
@@ -149,7 +164,26 @@ window.installChatMessageActions = function({ container, csrfToken, onChange }) 
   });
   textarea.addEventListener('input', () => textarea.setCustomValidity(''));
   return {
-    isBusy: () => pending || editor.open || !menu.hidden || press !== null,
+    decorate(row, bubble, event, userId) {
+      const reactions = document.createElement('div'); reactions.className = 'private-reactions';
+      const counts = new Map();
+      for (const reaction of event.reactions || []) {
+        const data = counts.get(reaction.emoji) || {count:0,mine:false,names:[]}; data.count++; data.mine ||= Number(reaction.user_id) === userId; data.names.push(reaction.username); counts.set(reaction.emoji,data);
+      }
+      for (const [emoji,data] of counts) {
+        const button = document.createElement('button'); button.type = 'button'; button.textContent = emoji + ' ' + data.count; button.title = data.names.join('、'); button.setAttribute('aria-pressed', String(data.mine));
+        button.addEventListener('click', () => { selected = {id:event.event_id,type:event.event_type}; mutate('react','',emoji); }); reactions.append(button);
+      }
+      const add = document.createElement('button'); add.type = 'button'; add.textContent = '☺'; add.setAttribute('aria-label','加入表情反應');
+      add.addEventListener('click', () => {
+        if (pending) return;
+        selected = {id:event.event_id,type:event.event_type}; closeMenu(); reactionMenu.hidden = false;
+        const rect = add.getBoundingClientRect(); reactionMenu.style.left = Math.max(8,Math.min(rect.left,innerWidth-reactionMenu.offsetWidth-8))+'px'; reactionMenu.style.top = Math.max(8,rect.top-reactionMenu.offsetHeight-4)+'px';
+      });
+      reactions.append(add); row.append(reactions);
+      row.id = 'private-' + event.event_type + '-' + event.event_id;
+    },
+    isBusy: () => pending || editor.open || !menu.hidden || !reactionMenu.hidden || press !== null,
     version: () => revision
   };
 };

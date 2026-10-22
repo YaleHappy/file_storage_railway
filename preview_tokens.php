@@ -1,5 +1,24 @@
 <?php
 
+function ensureReceivedPreviewTokensTable(PDO $pdo): void
+{
+    $pdo->exec('CREATE TABLE IF NOT EXISTS received_preview_tokens (
+        token CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL PRIMARY KEY,
+        delivery_id INT NOT NULL, recipient_id INT NOT NULL, expires_at DATETIME NOT NULL,
+        KEY idx_received_preview_expiry (expires_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+}
+
+function createReceivedPreviewToken(PDO $pdo, int $deliveryId, int $recipientId): string
+{
+    ensureReceivedPreviewTokensTable($pdo);
+    $pdo->exec('DELETE FROM received_preview_tokens WHERE expires_at < NOW()');
+    $token = bin2hex(random_bytes(32));
+    $stmt = $pdo->prepare('INSERT INTO received_preview_tokens (token, delivery_id, recipient_id, expires_at) VALUES (?, ?, ?, ?)');
+    $stmt->execute([$token, $deliveryId, $recipientId, date('Y-m-d H:i:s', time() + 3600)]);
+    return $token;
+}
+
 function ensurePreviewTokensTable(PDO $pdo): void
 {
     $pdo->exec("

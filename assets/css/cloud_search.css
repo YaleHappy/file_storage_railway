@@ -1,0 +1,30 @@
+#storageWorkspace.cloud-search-active > :not(.storage-heading):not(#cloudSearchResults) { display:none!important; }
+#storageWorkspace.cloud-search-active .storage-heading > p { display:none; }
+body.home-page:has(#storageWorkspace.cloud-search-active) .fab { display:none; }
+.cloud-search-toolbar { display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; margin:24px 0 16px; }
+.cloud-search-toolbar h2 { font-size:1.2rem; margin:0 0 8px; }
+#cloudSearchStatus { color:#b6c1dc; font-size:.9rem; margin:0; overflow-wrap:anywhere; }
+.cloud-search-controls { display:flex; gap:8px; }
+.cloud-search-controls .form-select { background-color:#252a45; color:#edf1ff; border-color:#586181; width:auto; max-width:100%; color-scheme:dark; }
+.cloud-search-list { border:1px solid #48516f; border-radius:12px; overflow:hidden; background:#242943; }
+.cloud-search-list:empty { border:0; }
+.cloud-search-row { display:flex; align-items:center; gap:16px; padding:16px; border-bottom:1px solid #ffffff12; }
+.cloud-search-row:last-child { border:0; }
+.cloud-search-icon { font-size:1.7rem; color:#adc5ff; flex-shrink:0; }
+.cloud-search-icon.folder { color:#d8b875; }
+.cloud-search-info { flex:1; min-width:0; display:flex; flex-direction:column; gap:5px; }
+.cloud-search-name { border:0; background:transparent; padding:0; color:#f0f3ff; font-weight:600; font-size:1rem; text-align:left; overflow-wrap:anywhere; }
+.cloud-search-name:hover { text-decoration:underline; }
+.cloud-search-path { color:#aebfdf; font-size:.85rem; text-decoration:none; overflow-wrap:anywhere; }
+.cloud-search-path:hover { color:#d1e2ff; text-decoration:underline; }
+.cloud-search-meta { color:#a6b0cb; font-size:.8rem; }
+.cloud-search-action { flex-shrink:0; font-size:.85rem; }
+.cloud-search-empty { padding:28px 20px; color:#bac5df; margin:0; }
+.cloud-search-pagination { display:flex; align-items:center; justify-content:center; gap:16px; margin:20px 0; color:#bac5df; }
+@media(max-width:767.98px) {
+ .cloud-search-controls { width:100%; flex-wrap:wrap; }
+ .cloud-search-controls .form-select { flex:1; min-width:0; font-size:.85rem; }
+ .cloud-search-controls .btn { font-size:.85rem; }
+ .cloud-search-row { gap:12px; padding:14px 12px; }
+ .cloud-search-name { font-size:.95rem; }
+}

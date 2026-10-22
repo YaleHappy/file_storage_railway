@@ -1,12 +1,15 @@
 <?php
 session_start();
-require 'config.php';
+require_once __DIR__ . '/config.php';
 
 // (1) 確認是否已登入
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit;
 }
+
+require_once __DIR__ . '/file_cleanup.php';
+cleanupMissingSharedFiles($pdo, (int) $_SESSION['user_id']);
 
 // (2) 若尚未設定狀態，從資料庫載入或預設 online
 if (!isset($_SESSION['status'])) {
@@ -20,28 +23,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_files'])) {
   // 收集勾選的 shared_files.id
   $ids = $_POST['delete'] ?? [];
   if (!empty($ids)) {
-      // 事先準備好 SELECT 與 DELETE
-      $stmtSelect = $pdo->prepare("SELECT file_path FROM shared_files WHERE id = ? AND recipient_id = ?");
-      $stmtDel    = $pdo->prepare("DELETE FROM shared_files WHERE id = ? AND recipient_id = ?");
-
-      foreach ($ids as $id) {
-          // 先查詢檔案路徑
-          $stmtSelect->execute([$id, $_SESSION['user_id']]);
-          $fileInfo = $stmtSelect->fetch(PDO::FETCH_ASSOC);
-          if ($fileInfo) {
-              // 組合實體檔案的完整路徑
-              // 假設 file_path 內已含 "uploads/sent/檔名" 或 "uploads/shared/檔名" 
-              // 如果只存「檔名」，則需自行補上目錄路徑。
-              $fileFullPath = __DIR__ . '/' . $fileInfo['file_path'];
-
-              // 確認檔案存在後再刪除
-              if (file_exists($fileFullPath)) {
-                  unlink($fileFullPath);
-              }
-          }
-          // 刪除資料庫紀錄
-          $stmtDel->execute([$id, $_SESSION['user_id']]);
-      }
+      // Removing a received delivery must not unlink a file used by other deliveries.
+      $stmtDel = $pdo->prepare("DELETE FROM shared_files WHERE id = ? AND recipient_id = ?");
+      foreach ((array)$ids as $id) $stmtDel->execute([(int)$id, $_SESSION['user_id']]);
   }
   // 重新導向避免重複提交
   header("Location: received_files.php");
@@ -58,6 +42,7 @@ $stmt = $pdo->prepare("
     FROM shared_files sf
     JOIN users u ON sf.sender_id = u.user_id
     WHERE sf.recipient_id = ?
+    ORDER BY sf.sent_at DESC, sf.id DESC
 ");
 $stmt->execute([$_SESSION['user_id']]);
 $files = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -94,9 +79,11 @@ $files = $stmt->fetchAll(PDO::FETCH_ASSOC);
       position: relative;
     }
   </style>
-  <link href="assets/css/responsive.css?v=20261021-1" rel="stylesheet">
+  <link href="assets/css/responsive.css?v=20261022-2" rel="stylesheet">
+<link href="assets/css/file_lists.css?v=20261022-2" rel="stylesheet">
+<link href="assets/css/preview_theme.css?v=20261022-2" rel="stylesheet">
 </head>
-<body class="has-fixed-navbar">
+<body class="has-fixed-navbar file-page">
 
 <!-- 導覽列 (可與 index.php 相同) -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
@@ -147,54 +134,24 @@ $files = $stmt->fetchAll(PDO::FETCH_ASSOC);
   </div>
 </nav>
 
-<!-- 主內容區 -->
-<div class="container py-5">
-  <h1 class="mb-4 text-center">收到的檔案</h1>
-
-  <?php if (empty($files)): ?>
-    <div class="alert alert-info text-center">目前沒有收到任何檔案。</div>
-  <?php else: ?>
-    <!-- 批次刪除表單 -->
-    <form method="post" id="deleteForm">
-      <div class="mb-3 d-flex align-items-center bulk-actions">
-        <input type="checkbox" id="selectAll" class="me-2">
-        <label class="btn btn-primary me-2" for="selectAll">全選</label>
-        <button type="submit" name="delete_files" class="btn btn-danger" onclick="return confirm('確定刪除選取的檔案？');">
-          刪除選取檔案
-        </button>
-      </div>
-
-      <div class="row row-cols-1 row-cols-sm-2 row-cols-md-4 g-4">
-        <?php foreach ($files as $file): ?>
-          <div class="col">
-            <div class="card card-file file-card">
-              <div class="card-header d-flex justify-content-between align-items-center">
-                <span>來自 <?= htmlspecialchars($file['sender_name']) ?></span>
-                <!-- 單筆勾選 -->
-                <input type="checkbox" name="delete[]" value="<?= $file['id'] ?>">
-              </div>
-              <div class="card-body text-center">
-                <i class="bi bi-file-earmark-fill fs-1"></i>
-                <h5 class="card-title mt-2"><?= htmlspecialchars($file['original_filename']) ?></h5>
-                <p class="card-text">傳送時間：<?= htmlspecialchars($file['sent_at']) ?></p>
-              </div>
-              <div class="card-footer bg-dark border-0 text-center">
-                <!-- 下載連結 -->
-                <a href="download_shared_file.php?id=<?= $file['id'] ?>" class="btn btn-success btn-sm">
-                  <i class="bi bi-download"></i> 下載
-                </a>
-                <!-- 新增到自己雲端 -->
-                <button type="button" class="btn btn-warning btn-sm" onclick="addToMyCloud(<?= $file['id'] ?>)">
-                  <i class="bi bi-cloud-arrow-up"></i> 新增到我的雲端
-                </button>
-              </div>
-            </div>
-          </div>
-        <?php endforeach; ?>
-      </div>
-    </form>
-  <?php endif; ?>
-</div>
+<main class="container file-workspace">
+<header class="file-heading"><div><h1><i class="bi bi-inbox"></i> 收到的檔案</h1><p class="file-muted">共 <?= count($files) ?> 個檔案 · 下載或儲存一份到自己的雲端</p></div></header>
+<section class="file-panel" aria-label="收到的檔案列表">
+<div class="file-toolbar"><input type="search" class="file-search" placeholder="搜尋檔名或傳送者…" aria-label="搜尋收到的檔案"><select class="file-filter" aria-label="傳送者"><option value="">所有傳送者</option><?php $senders=[]; foreach($files as $f) $senders[$f['sender_id']]=$f['sender_name']; foreach($senders as $id=>$name): ?><option value="<?= (int)$id ?>"><?= htmlspecialchars($name) ?></option><?php endforeach; ?></select></div>
+<form method="post" id="deleteForm">
+<?php if($files): ?><div class="file-toolbar"><label class="d-flex align-items-center gap-2"><input type="checkbox" id="selectAll"> 全選顯示項目</label><button type="submit" name="delete_files" class="btn btn-outline-danger btn-sm" id="removeReceived" disabled>移除選取紀錄</button><span class="file-muted">保留傳送者的原始檔案</span></div><?php endif; ?>
+<?php foreach($files as $file): $path=__DIR__.'/'.$file['file_path']; $bytes=is_file($path)?filesize($path):0; ?>
+<article class="file-row received-row" data-name="<?= htmlspecialchars($file['original_filename'].' '.$file['sender_name'],ENT_QUOTES) ?>" data-state="<?= (int)$file['sender_id'] ?>">
+<div class="file-name"><input type="checkbox" name="delete[]" value="<?= (int)$file['id'] ?>" aria-label="選取 <?= htmlspecialchars($file['original_filename'],ENT_QUOTES) ?>"><i class="bi bi-file-earmark-text" aria-hidden="true"></i><div><h2 class="file-title" title="<?= htmlspecialchars($file['original_filename'],ENT_QUOTES) ?>"><?= htmlspecialchars($file['original_filename']) ?></h2><p class="file-muted">來自 <?= htmlspecialchars($file['sender_name']) ?> · <?= $bytes>=1048576 ? number_format($bytes/1048576,2).' MB' : number_format($bytes/1024,1).' KB' ?></p></div></div>
+<div><p class="file-muted">收到時間</p><span><?= date('Y/m/d H:i',strtotime($file['sent_at'])) ?></span></div>
+<div class="file-actions"><a class="btn btn-soft btn-sm file-preview" title="預覽檔案" href="preview.php?received_id=<?= (int)$file['id'] ?>" target="_blank" rel="noopener"><i class="bi bi-eye"></i> 預覽</a><a href="download_shared_file.php?id=<?= (int)$file['id'] ?>" class="btn btn-soft btn-sm"><i class="bi bi-download"></i> 下載</a><button type="button" class="btn btn-primary btn-sm save-cloud" data-id="<?= (int)$file['id'] ?>"><i class="bi bi-cloud-arrow-up"></i> 儲存到雲端</button></div>
+</article>
+<?php endforeach; ?>
+</form>
+<div class="file-empty" id="fileEmpty" <?= $files ? 'hidden' : '' ?>><i class="bi bi-inbox" aria-hidden="true"></i><h2><?= $files ? '找不到符合的檔案' : '還沒有收到檔案' ?></h2><p><?= $files ? '試試其他檔名或傳送者。' : '朋友透過個人聊天傳送的檔案，會整理在這裡。' ?></p></div>
+</section><p class="file-feedback" id="receivedFeedback" role="status"></p>
+</main>
+<?php require __DIR__ . "/partials/file_preview_dialog.php"; ?>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
@@ -230,33 +187,27 @@ document.querySelectorAll('.status-option').forEach(item => {
   });
 });
 
-// ========== 全選/取消全選 ==========
-document.getElementById('selectAll').addEventListener('change', function() {
-  const checkboxes = document.querySelectorAll('input[name="delete[]"]');
-  checkboxes.forEach(cb => cb.checked = this.checked);
-});
-
-// ========== 新增到自己雲端 ==========
-function addToMyCloud(id) {
-  if (confirm("確定要將此檔案新增到您的雲端（根目錄）嗎？")) {
-    fetch('add_to_my_cloud.php?id=' + id)
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          alert("檔案已成功新增到您的雲端！");
-        } else {
-          alert(data.msg || "新增失敗");
-        }
-      })
-      .catch(err => {
-        console.error('新增到雲端時發生錯誤:', err);
-        alert("新增過程發生錯誤");
-      });
-  }
-}
+const selectionChanged=()=>{
+ const boxes=[...document.querySelectorAll('input[name="delete[]"]')].filter(cb=>!cb.closest('.file-row').hidden);
+ const selected=boxes.filter(cb=>cb.checked).length;
+ const all=document.getElementById('selectAll'),remove=document.getElementById('removeReceived');
+ if(all){all.checked=boxes.length>0&&selected===boxes.length;all.indeterminate=selected>0&&selected<boxes.length;}
+ if(remove)remove.disabled=!selected;
+};
+document.getElementById('selectAll')?.addEventListener('change',function(){document.querySelectorAll('.file-row:not([hidden]) input[name="delete[]"]').forEach(cb=>cb.checked=this.checked);selectionChanged();});
+document.querySelectorAll('input[name="delete[]"]').forEach(cb=>cb.addEventListener('change',selectionChanged));
+document.getElementById('deleteForm').addEventListener('submit',e=>{if(!confirm('移除選取的收件紀錄？已儲存的雲端副本與傳送者的檔案會保留。'))e.preventDefault();});
+document.addEventListener('file-filtered',()=>{document.querySelectorAll('.file-row[hidden] input[type=checkbox]').forEach(cb=>cb.checked=false);selectionChanged();});
+document.querySelectorAll('.save-cloud').forEach(btn=>btn.addEventListener('click',async()=>{
+ btn.disabled=true;btn.textContent='儲存中…';
+ try {const r=await fetch('add_to_my_cloud.php?id='+encodeURIComponent(btn.dataset.id));const d=await r.json();if(!r.ok||!d.success)throw Error(d.msg||'儲存失敗');btn.textContent='已儲存到雲端';document.getElementById('receivedFeedback').textContent='檔案已儲存到首頁的雲端根目錄。';}
+ catch(err){btn.disabled=false;btn.textContent='儲存到雲端';document.getElementById('receivedFeedback').textContent=err.message;}
+}));
 </script>
+<script src="assets/js/file_lists.js?v=20261022-4"></script>
 <script src="assets/js/presence.js?v=20260928-2"></script>
-<script src="assets/js/message_notifications.js?v=20261021-1"></script>
-<script src="assets/js/navbar_notifications.js?v=20261021-1"></script>
+<script src="assets/js/message_notifications.js?v=20261021-5"></script>
+<script src="assets/js/navbar_notifications.js?v=20261022-1"></script>
+<?php require __DIR__ . '/partials/online_users.php'; ?>
 </body>
 </html>

@@ -1,9 +1,10 @@
 <?php
 session_start();
-require 'config.php';
-require_once 'presence_helpers.php';
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/presence_helpers.php';
 
 header('Content-Type: application/json; charset=utf-8');
+header('Cache-Control: no-store');
 
 if (!isset($_SESSION['user_id'])) {
     echo json_encode(['success' => false, 'error' => '請先登入']);
@@ -21,6 +22,8 @@ try {
         FROM users
     ");
     $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $disabledUsers=storageDisabledUserIds($pdo);
+    $users=array_values(array_filter($users,fn($user)=>!in_array((int)$user['user_id'],$disabledUsers,true)));
 
     $statusStmt = $pdo->prepare("SELECT status, status_mode FROM users WHERE user_id = ?");
     $statusStmt->execute([$currentUserId]);
@@ -33,5 +36,7 @@ try {
         'current_status' => $current['status'],
     ], presencePayload($current['status'], $current['status_mode'])));
 } catch (Throwable $error) {
-    echo json_encode(['success' => false, 'error' => $error->getMessage()]);
+    error_log('User status load failed: '.$error->getMessage());
+    http_response_code(500);
+    echo json_encode(['success'=>false,'error'=>'使用者狀態暫時無法載入，請稍後再試。']);
 }

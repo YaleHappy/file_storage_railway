@@ -7,7 +7,7 @@ if (!isset($_SESSION['user_id'])) {
     echo json_encode(['success' => false, 'msg' => '請先登入']);
     exit;
 }
-require 'config.php';
+require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/group_service.php';
 try {
     ensureGroupSchema($pdo);
@@ -18,6 +18,7 @@ try {
             $data = ['groups' => groupList($pdo, $userId)];
         } elseif ($id && ($_GET['view'] ?? '') === 'files') {
             groupMember($pdo, $id, $userId);
+            cleanupMissingGroupFiles($pdo, $id, $userId);
             $search = '%' . mb_substr((string) ($_GET['search'] ?? ''), 0, 255) . '%';
             $offset = max(0, (int) ($_GET['offset'] ?? 0));
             $files = groupQuery($pdo, "SELECT m.id, m.original_filename, m.file_size, m.created_at, u.username
@@ -28,6 +29,7 @@ try {
         } elseif ($id) {
             $data = groupSnapshot($pdo, $id, $userId, (int) ($_GET['before'] ?? 0));
         } else {
+            cleanupMissingUserFiles($pdo, $userId);
             $data = [
                 'groups' => groupList($pdo, $userId),
                 'users' => groupQuery($pdo, 'SELECT user_id, username FROM users WHERE user_id <> ? ORDER BY username', [$userId])->fetchAll(PDO::FETCH_ASSOC),

@@ -1,9 +1,23 @@
 .chat-back { display: none; }
+.chat-search-trigger { display: flex; align-items: center; justify-content: space-between; gap: .6rem; width: min(220px,24vw); padding: .5rem .65rem; color: #b9c5e5; background: #191b30; border: 1px solid #60668c; border-radius: 8px; font-size: .85rem; flex-shrink: 0; }
+.chat-search-result { display: flex; flex-direction: column; gap: .4rem; text-align: left; width: 100%; border: 0; border-bottom: 1px solid #565a87; background: transparent; color: #fff; padding: .85rem .5rem; }
+.chat-search-result small { color: #b9c5e5; }
+.chat-search-result span { white-space: pre-wrap; overflow-wrap: anywhere; }
+.chat-search-result:hover { background: #343768; }
+.chat-search-highlight { outline: 2px solid #ffc107; outline-offset: 3px; border-radius: 8px; }
+#chatSearchResults { max-height: 50dvh; overflow: auto; }
+@media (max-width: 767.98px) { .chat-search-trigger { width: 40px; height: 40px; padding: 0; justify-content: center; } .chat-search-trigger span { display: none; } }
+.history-page .history-shell { height: var(--chat-available-height, calc(100dvh - 14rem)); min-height: 0; }
+.history-page .history-shell .chat-panel { height: 100%; min-height: 0; }
+.history-page .history-shell .chat-messages { flex: 1; min-height: 0; max-height: none; overscroll-behavior: contain; }
+.history-page .history-shell .group-room { height: 100%; min-height: 0; }
+.history-page .history-shell .conversation-panel { min-height: 0; overflow: auto; }
+.history-page .chat-header, .history-page .chat-composer, .private-pins, .private-reply-preview { flex-shrink: 0; }
 .message-bubble[data-message-id] { -webkit-touch-callout: none; }
 .message-action-menu {
   position: fixed;
   z-index: 2000;
-  width: 160px;
+  width: min(250px, calc(100vw - 24px));
   padding: .4rem;
   border: 1px solid #565a87;
   border-radius: 12px;
@@ -26,6 +40,20 @@
 .message-action-menu button:hover,
 .message-action-menu button:focus-visible { background: #414576; }
 .message-action-menu button[hidden] { display: none; }
+.message-action-menu [data-action="recall"] { color: #ff8795; border-top: 1px solid #565a87; border-radius: 0; }
+.private-reaction-picker { display: flex; width: min(310px, calc(100vw - 24px)); }
+.private-reaction-picker button { width: auto; flex: 1; text-align: center; padding: .4rem; font-size: 1.2rem; }
+.history-shell .message-row { flex-direction: column; align-items: flex-start; }
+.history-shell .message-row.sent { align-items: flex-end; }
+.private-reactions { display: flex; gap: .3rem; margin-top: .35rem; flex-wrap: wrap; }
+.private-reactions button { background: #30334c; color: #fff; border: 1px solid transparent; border-radius: 8px; min-height: 32px; padding: .25rem .55rem; }
+.private-reactions button[aria-pressed="true"] { background: #334f79; border-color: #7caaff; }
+.private-quote { border-left: 3px solid #9dcdff; background: #0002; padding: .4rem; margin-bottom: .5rem; font-size: .85rem; white-space: pre-wrap; }
+.private-reply-preview { display: flex; justify-content: space-between; gap: .5rem; padding: .6rem; background: #303559; }
+.private-reply-preview span { overflow-wrap: anywhere; min-width: 0; }
+.private-reply-preview[hidden], .private-pins[hidden], .private-reaction-picker[hidden] { display: none; }
+.private-pins { padding: .5rem; max-height: 95px; overflow: auto; background: #353047; }
+.private-pins button { display: block; width: 100%; border: 0; background: transparent; color: #fff; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: .3rem; }
 .chat-edit-dialog {
   width: min(460px, calc(100vw - 2rem));
   padding: 1.25rem;
@@ -69,3 +97,6 @@
   .chat-header h2 { overflow-wrap: anywhere; }
   .chat-composer { padding-bottom: max(.75rem, env(safe-area-inset-bottom)); }
 }
+.file-event-actions { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:12px 0 8px; }
+.file-event-actions > .btn { border-radius:8px; padding:7px 12px; white-space:nowrap; }
+.file-event-actions > .btn-outline-light { background:transparent; color:#eff3ff; border-color:#a0afd0; }

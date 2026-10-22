@@ -1,6 +1,7 @@
 <?php
 session_start();
-require 'config.php';
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/account_access.php';
 
 if (isset($_POST['login'])) {
     $username = trim($_POST['username'] ?? '');
@@ -20,9 +21,12 @@ if (isset($_POST['login'])) {
         $stmt->execute([$username]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if ($user && $password === $user['password']) {
+        if ($user && $password === $user['password'] && !(int)storageAccountState($pdo,(int)$user['user_id'])['disabled']) {
+            // Rotate the session after authentication.
+            session_regenerate_id(true);
             // 登入成功，寫入 Session
             $_SESSION['user_id'] = $user['user_id'];
+            $_SESSION['account_version'] = (int)storageAccountState($pdo,(int)$user['user_id'])['session_version'];
             $_SESSION['username'] = $user['username'];
             $_SESSION['is_admin'] = $user['is_admin'];
             $_SESSION['role'] = ($user['is_admin'] == 1) ? 'admin' : 'user'; // ← 加這行
@@ -49,7 +53,7 @@ if (isset($_POST['login'])) {
             header("Location: index.php");
             exit;
         } else {
-            $error = $user ? "密碼錯誤。" : "找不到該使用者。";
+            $error = $user && (int)storageAccountState($pdo,(int)$user['user_id'])['disabled'] ? "此帳號已停用，請聯絡管理員。" : ($user ? "密碼錯誤。" : "找不到該使用者。");
         }
     }
 }
@@ -61,107 +65,33 @@ if (isset($_POST['login'])) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/png" href="image/icon.png">
-
   <title>雲上聊頁來｜登入</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <style>
-    body {
-      background: linear-gradient(135deg, #2c3e50, #4e5f70);
-      color: #fff;
-      height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .login-container {
-      max-width: 420px;
-      width: 100%;
-    }
-    .login-card {
-      background: rgba(255,255,255,0.12);
-      backdrop-filter: blur(10px);
-      border-radius: .75rem;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-      padding: 2rem;
-    }
-    .brand-logo {
-      display: block;
-      width: 80px;
-      height: 80px;
-      margin: 0 auto 1rem;
-    }
-    .form-floating label {
-      color: #eee;
-    }
-    .form-control {
-      background: rgba(255,255,255,0.2);
-      border: 1px solid rgba(255,255,255,0.3);
-      color: #fff;
-    }
-    .form-control:focus {
-      background: rgba(255,255,255,0.3);
-      color: #fff;
-    }
-    .btn-primary {
-      background-color: #0d6efd;
-      border: none;
-    }
-    .btn-primary:hover {
-      background-color: #0056b3;
-    }
-    .btn-link {
-      color: #ccc;
-      text-decoration: none;
-    }
-    .btn-link:hover {
-      color: #fff;
-      text-decoration: underline;
-    }
-    .website-title {
-      text-align: center;
-      font-size: 1.6rem;
-      font-weight: bold;
-      margin-bottom: 0.5rem;
-    }
-    .website-description {
-      text-align: center;
-      font-size: 0.95rem;
-      color: #ddd;
-      margin-bottom: 1.5rem;
-    }
-  </style>
-  <link href="assets/css/responsive.css?v=20260928-7" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="assets/css/auth.css?v=20261022-1" rel="stylesheet">
 </head>
 <body class="auth-page">
-  <div class="login-container">
-    <div class="website-title">☁️ 雲上聊頁來</div>
-    <div class="website-description">檔案儲存、即時聊天與安全分享，一頁完成</div>
-    
-    <div class="card login-card">
-      <h3 class="text-center mb-4">登入</h3>
-      <?php if (isset($error)): ?>
-        <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
-      <?php endif; ?>
-      <form method="post" action="login.php">
-        <div class="form-floating mb-3">
-          <input type="text" class="form-control" id="username" name="username" placeholder="使用者名稱" required value="<?= htmlspecialchars($username ?? '') ?>">
-          <label for="username">使用者名稱</label>
-        </div>
-        <div class="form-floating mb-3">
-          <input type="password" class="form-control" id="password" name="password" placeholder="密碼" required>
-          <label for="password">密碼</label>
-        </div>
-        <div class="form-floating mb-4">
-          <input type="text" class="form-control" id="authcode" name="authcode" placeholder="授權碼" required>
-          <label for="authcode">授權碼 (stust+日期，例如：stust0403)</label>
-        </div>
-        <button type="submit" class="btn btn-primary w-100 mb-3" name="login">登入</button>
-        <div class="text-center">
-          <a href="register.php" class="btn btn-link">還沒有帳號？立即註冊</a>
-        </div>
-      </form>
-    </div>
-  </div>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+<main class="auth-shell">
+  <?php require __DIR__ . '/partials/auth_intro.php'; ?>
+  <section class="auth-card" aria-labelledby="authTitle">
+    <h1 id="authTitle">歡迎回來</h1>
+    <p class="auth-subtitle">登入後，繼續整理檔案與對話。</p>
+    <?php if (isset($error)): ?>
+      <div class="auth-alert" role="alert" tabindex="-1"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></div>
+    <?php elseif (($_GET['session'] ?? '') === 'expired'): ?>
+      <div class="auth-alert" role="alert" tabindex="-1">登入已失效或帳號已停用，請重新登入；如有問題請聯絡管理員。</div>
+    <?php elseif (($_GET['verify'] ?? '') === 'success'): ?>
+      <div class="auth-alert success" role="status">帳號建立成功，請使用新帳號登入。</div>
+    <?php endif; ?>
+    <form method="post" action="login.php">
+      <div class="auth-field"><label for="username">使用者名稱</label><input type="text" class="form-control" id="username" name="username" placeholder="輸入使用者名稱" autocomplete="username" autocapitalize="none" spellcheck="false" required value="<?= htmlspecialchars($username ?? '', ENT_QUOTES, 'UTF-8') ?>"></div>
+      <div class="auth-field"><label for="password">密碼</label><div class="auth-password"><input type="password" class="form-control" id="password" name="password" placeholder="輸入密碼" autocomplete="current-password" required><button type="button" class="auth-password-toggle" data-target="password" data-label="密碼" aria-controls="password" aria-label="顯示密碼" aria-pressed="false">顯示</button></div></div>
+      <div class="auth-field"><label for="authcode">授權碼</label><input type="text" class="form-control" id="authcode" name="authcode" placeholder="輸入當日授權碼" autocapitalize="none" spellcheck="false" aria-describedby="authcodeHint" required><p id="authcodeHint" class="auth-hint">格式為 stust＋當日月日，例如 stust0403。</p></div>
+      <button type="submit" class="btn auth-submit" name="login" value="1">登入</button>
+    </form>
+    <p class="auth-switch">還沒有帳號？<a href="register.php">建立帳號</a></p>
+  </section>
+</main>
+<script src="assets/js/auth.js?v=20261022-1"></script>
 </body>
 </html>

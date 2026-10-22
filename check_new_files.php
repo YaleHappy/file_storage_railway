@@ -1,6 +1,6 @@
 <?php
 session_start();
-require 'config.php';
+require_once __DIR__ . '/config.php';
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['user_id'])) {
@@ -9,6 +9,8 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 try {
+    require_once __DIR__ . '/file_cleanup.php';
+    cleanupMissingSharedFiles($pdo, (int) $_SESSION['user_id']);
     $stmt = $pdo->prepare("SELECT COUNT(*) FROM shared_files WHERE recipient_id = ? AND is_read = 0");
     $stmt->execute([$_SESSION['user_id']]);
     $newFiles = $stmt->fetchColumn();

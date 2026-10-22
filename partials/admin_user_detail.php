@@ -1,0 +1,5 @@
+<?php if($section==='users' && !empty($_GET['user'])):
+$detail=adminQuery($pdo,'SELECT u.user_id,u.username,u.email,u.is_admin,COALESCE(a.disabled,0) AS disabled FROM users u LEFT JOIN admin_account_state a ON a.user_id=u.user_id WHERE u.user_id=?',[(int)$_GET['user']])->fetch(PDO::FETCH_ASSOC);
+if($detail): ?>
+<section class="admin-editor admin-user-detail"><div class="admin-section-heading"><h2><?= ah($detail['username']) ?> 的資料</h2><a href="<?= ah(adminUrl()) ?>">收起資料</a></div><p><?= ah($detail['email']) ?></p><p><?= adminBadge($detail['is_admin']?'管理員':'一般使用者','info') ?> <?= adminBadge($detail['disabled']?'已停用':'帳號正常',$detail['disabled']?'danger':'success') ?></p><div class="admin-actions"><a class="btn btn-soft" href="admin.php?section=storage&amp;uid=<?= (int)$detail['user_id'] ?>&amp;folder=0">瀏覽雲端檔案</a><a class="btn btn-soft" href="admin.php?section=chats&amp;uid=<?= (int)$detail['user_id'] ?>">查看私訊紀錄</a><a class="btn btn-soft" href="admin.php?section=notifications&amp;uid=<?= (int)$detail['user_id'] ?>">查看通知紀錄</a></div></section>
+<?php else: ?><p class="admin-flash">找不到此使用者。</p><?php endif;endif; ?>

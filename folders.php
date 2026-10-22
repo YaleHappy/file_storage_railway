@@ -1,6 +1,6 @@
 <?php
 session_start();
-require 'config.php';
+require_once __DIR__ . '/config.php';
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['user_id'])) {
@@ -8,11 +8,16 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
+if(($_SERVER['REQUEST_METHOD']??'GET')!=='POST'){http_response_code(405);header('Allow: POST');echo json_encode(['success'=>false,'msg'=>'請透過表單操作']);exit;}
 $action = $_GET['action'] ?? '';
 
 if ($action === 'create') {
     $name = trim($_POST['folder_name'] ?? '');
     $parent = (int)($_POST['parent_folder'] ?? 0);
+    require_once __DIR__ . '/folder_access.php';
+    if (!ownsStorageFolder($pdo, (int)$_SESSION['user_id'], $parent)) {
+        http_response_code(403); echo json_encode(['success'=>false,'msg'=>'上層資料夾不存在或沒有權限']); exit;
+    }
     
     if ($name === '') {
         echo json_encode(['success' => false, 'msg' => '資料夾名稱不可空']);
@@ -20,12 +25,7 @@ if ($action === 'create') {
     }
 
     // **檢查同一個 parent_folder 是否已經有相同名稱的資料夾**
-    $stmtCheck = $pdo->prepare("
-        SELECT COUNT(*) FROM folders
-        WHERE user_id = ? AND parent_folder = ? AND folder_name = ?
-    ");
-    $stmtCheck->execute([$_SESSION['user_id'], $parent, $name]);
-    $exists = $stmtCheck->fetchColumn();
+    $exists=storageFolderNameExists($pdo,(int)$_SESSION['user_id'],$parent,$name);
 
     if ($exists > 0) {
         echo json_encode(['success' => false, 'msg' => '同層已存在相同名稱的資料夾']);
@@ -61,15 +61,11 @@ elseif ($action === 'rename') {
         echo json_encode(['success' => false, 'msg' => '找不到該資料夾']);
         exit;
     }
-    $parent = $parentData['parent_folder'];
+    $parent = (int)$parentData['parent_folder'];
 
     // **檢查新的名稱在同層資料夾是否已存在**
-    $stmtCheck = $pdo->prepare("
-        SELECT COUNT(*) FROM folders
-        WHERE user_id = ? AND parent_folder = ? AND folder_name = ? AND folder_id != ?
-    ");
-    $stmtCheck->execute([$_SESSION['user_id'], $parent, $name, $fid]);
-    $exists = $stmtCheck->fetchColumn();
+    require_once __DIR__.'/folder_access.php';
+    $exists=storageFolderNameExists($pdo,(int)$_SESSION['user_id'],$parent,$name,$fid);
 
     if ($exists > 0) {
         echo json_encode(['success' => false, 'msg' => '同層已存在相同名稱的資料夾']);
@@ -93,6 +89,10 @@ elseif ($action === 'delete') {
         exit;
     }
 
+    require_once __DIR__.'/folder_access.php';
+    if(!ownsStorageFolder($pdo,(int)$_SESSION['user_id'],$fid)){
+        http_response_code(404);echo json_encode(['success'=>false,'msg'=>'資料夾不存在或沒有權限']);exit;
+    }
     // **檢查該資料夾內是否還有子資料夾**
     $stmtCheckSubFolders = $pdo->prepare("
         SELECT COUNT(*) FROM folders WHERE parent_folder = ? AND user_id = ?
@@ -124,7 +124,7 @@ elseif ($action === 'delete') {
         LIMIT 1
     ");
     $ok = $stmt->execute([$fid, $_SESSION['user_id']]);
-    echo json_encode(['success' => $ok]);
+    echo json_encode(['success' => $ok && $stmt->rowCount()>0]);
 }
 
 else {

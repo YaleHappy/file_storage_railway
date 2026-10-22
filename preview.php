@@ -1,8 +1,8 @@
 <?php
 
 session_start();
-require 'config.php';
-require_once 'preview_tokens.php';
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/preview_tokens.php';
 
 
 // ============================================================
@@ -14,12 +14,23 @@ if (!isset($_SESSION['user_id'])) {
     exit('<p style="color:red;">請先登入</p>');
 }
 
-if (!isset($_GET['file_id'])) {
+$receivedPreview = isset($_GET['received_id']);
+$adminPreview = !$receivedPreview && ($_GET['admin'] ?? '') === '1';
+$previewOwner = (int)$_SESSION['user_id'];
+if ($adminPreview) {
+    require_once __DIR__.'/admin_service.php';
+    try { requireStorageAdmin($pdo,$previewOwner); }
+    catch (DomainException $error) { http_response_code(403); exit('沒有管理權限'); }
+    $ownerStmt=$pdo->prepare('SELECT user_id FROM files WHERE file_id=?');
+    $ownerStmt->execute([(int)($_GET['file_id']??0)]);
+    $previewOwner=(int)$ownerStmt->fetchColumn();
+}
+if (!isset($_GET['file_id']) && !$receivedPreview) {
     http_response_code(400);
     exit('<p style="color:red;">無效的檔案編號</p>');
 }
 
-$fileId = (int) $_GET['file_id'];
+$fileId = (int) ($receivedPreview ? $_GET['received_id'] : $_GET['file_id']);
 
 if ($fileId <= 0) {
     http_response_code(400);
@@ -31,26 +42,13 @@ if ($fileId <= 0) {
 // 取得檔案資訊
 // ============================================================
 
-$stmt = $pdo->prepare("
-    SELECT
-        file_id,
-        user_id,
-        original_filename,
-        file_size,
-        stored_filename
-    FROM files
-    WHERE file_id = ?
-      AND user_id = ?
-    LIMIT 1
-");
-
-$stmt->execute([
-    $fileId,
-    $_SESSION['user_id']
-]);
-
+if ($receivedPreview) {
+    $stmt = $pdo->prepare('SELECT id AS file_id, recipient_id AS user_id, original_filename, file_path FROM shared_files WHERE id = ? AND recipient_id = ? LIMIT 1');
+} else {
+    $stmt = $pdo->prepare('SELECT file_id, user_id, original_filename, file_size, stored_filename FROM files WHERE file_id = ? AND user_id = ? LIMIT 1');
+}
+$stmt->execute([$fileId, $previewOwner]);
 $fileRow = $stmt->fetch(PDO::FETCH_ASSOC);
-
 
 if (!$fileRow) {
     http_response_code(404);
@@ -62,12 +60,13 @@ if (!$fileRow) {
 // 實際檔案路徑
 // ============================================================
 
-$filePath = __DIR__ . '/uploads/' . $fileRow['stored_filename'];
+$filePath = $receivedPreview ? __DIR__ . '/' . $fileRow['file_path'] : __DIR__ . '/uploads/' . $fileRow['stored_filename'];
 
 
 if (!is_file($filePath)) {
     require_once __DIR__ . '/file_cleanup.php';
-    cleanupMissingUserFiles($pdo, (int) $_SESSION['user_id']);
+    if ($receivedPreview) cleanupMissingSharedFiles($pdo, (int) $_SESSION['user_id'], $fileId);
+    elseif (!$adminPreview) cleanupMissingUserFiles($pdo, (int) $_SESSION['user_id']);
     http_response_code(404);
     exit('<p style="color:red;">檔案遺失，無法預覽。</p>');
 }
@@ -117,7 +116,7 @@ $officeFormats = array_merge(
 
 // 建立資料庫保存、1 小時有效的隨機預覽 Token，不需要環境變數。
 try {
-    $previewToken = createPreviewToken($pdo, $fileId, (int) $_SESSION['user_id']);
+    $previewToken = $receivedPreview ? '' : createPreviewToken($pdo, $fileId, $previewOwner);
 } catch (Throwable $error) {
     error_log('建立預覽 Token 失敗: ' . $error->getMessage());
     http_response_code(500);
@@ -149,7 +148,7 @@ $previewPath =
     rawurlencode($previewToken) .
     '&file_id=' .
     $fileId;
-
+if ($receivedPreview) $previewPath = $basePath . '/download_shared_file.php?id=' . $fileId . '&preview=1';
 
 // ============================================================
 // 判斷 Zeabur 外部 HTTPS
@@ -219,6 +218,11 @@ $host = preg_replace(
 );
 
 
+if ($receivedPreview && in_array($ext, $officeFormats, true)) {
+    $receivedToken = createReceivedPreviewToken($pdo, $fileId, (int)$_SESSION['user_id']);
+    $previewPath = $basePath . '/received_preview_file.php?id=' . $fileId . '&token=' . rawurlencode($receivedToken);
+}
+
 // ============================================================
 // 完整公開網址
 // 第三方文件檢視器需要從外部連得到
@@ -255,6 +259,8 @@ $officeViewerUrl = in_array($ext, $microsoftOfficeFormats, true)
 $downloadUrl =
     'files.php?download=' .
     $fileId;
+if ($adminPreview) $downloadUrl = 'admin_download.php?file_id=' . $fileId;
+if ($receivedPreview) $downloadUrl = 'download_shared_file.php?id=' . $fileId;
 
 ?>
 <!DOCTYPE html>
@@ -488,14 +494,15 @@ $downloadUrl =
 
 
     <link
-        href="assets/css/responsive.css?v=20260928-7"
+        href="assets/css/responsive.css?v=20261022-2"
         rel="stylesheet"
     >
 
+<link href="assets/css/preview_theme.css?v=20261022-3" rel="stylesheet">
 </head>
 
 
-<body>
+<body class="preview-page">
 
 
 <div class="preview-container">

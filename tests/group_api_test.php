@@ -5,9 +5,17 @@ mkdir($fixtureDirectory);
 putenv('GROUP_TEST_DSN=sqlite:' . $fixtureDirectory . '/test.sqlite');
 require __DIR__ . '/group_service_test.php';
 putenv('GROUP_TEST_DSN');
-$root = dirname(__DIR__);
+$sourceRoot=dirname(__DIR__);
+// Run the endpoints from an isolated deployment with a connection-only config.
+foreach(glob($sourceRoot.'/*.php') as $sourceFile){
+ if(basename($sourceFile)==='config.php')continue;
+ copy($sourceFile,$fixtureDirectory.'/'.basename($sourceFile));
+}
+$pdo->exec('ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0');
+$root=$fixtureDirectory;
 $config = '<?php $pdo = new PDO(' . var_export('sqlite:' . $fixtureDirectory . '/test.sqlite', true)
     . ', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);';
+$config .= ' require_once __DIR__."/account_access.php"; enforceStorageAccount($pdo);';
 file_put_contents($fixtureDirectory . '/config.php', $config);
 $apiChecks = 0;
 function requestGroupEndpoint(string $endpoint, int $user, string $method = 'GET', array $get = [], array $post = []): array

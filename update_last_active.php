@@ -1,7 +1,7 @@
 <?php
 session_start();
-require 'config.php';
-require_once 'presence_helpers.php';
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/presence_helpers.php';
 
 header('Content-Type: application/json; charset=utf-8');
 

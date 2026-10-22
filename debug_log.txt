@@ -244,3 +244,182 @@
 
 2026-09-28 21:11:16 - file_id: 4, token: 9c36255abce1963fbf96b46307a07e49, expires: 2026-10-05 21:11:16, pwd_given: no
 2026-09-28 21:11:16 - Share link generated: http://localhost/file_storage/share.php?token=9c36255abce1963fbf96b46307a07e49
+2026-10-21 22:38:18 - POST Data: Array
+(
+    [file_id] => 71
+    [share_password] => audit-test-only
+)
+
+2026-10-21 22:38:18 - file_id: 71, token: 150ee531dae09951e90ed131206ffac7, expires: , pwd_given: yes
+2026-10-21 22:38:18 - Share link generated: http://localhost/file_storage/share.php?token=150ee531dae09951e90ed131206ffac7
+2026-10-21 22:38:32 - POST Data: Array
+(
+    [file_id] => 73
+    [share_password] => audit-test-only
+)
+
+2026-10-21 22:38:32 - file_id: 73, token: 0ca9b1c5866b0ebddffffcd848990e7c, expires: , pwd_given: yes
+2026-10-21 22:38:32 - Share link generated: http://localhost/file_storage/share.php?token=0ca9b1c5866b0ebddffffcd848990e7c
+2026-10-21 22:40:18 - POST Data: Array
+(
+    [file_id] => 74
+    [share_password] => audit-test-only
+)
+
+2026-10-21 22:40:18 - file_id: 74, token: 7fcec95c53f88268734fb8ceb4a37207, expires: , pwd_given: yes
+2026-10-21 22:40:18 - Share link generated: http://localhost/file_storage/share.php?token=7fcec95c53f88268734fb8ceb4a37207
+2026-10-22 06:00:41 - POST Data: Array
+(
+    [file_id] => 78
+    [expires_at] => 
+    [share_password] => 
+)
+
+2026-10-22 06:00:41 - file_id: 78, token: 68e03ad25e7955918b3bf871f9e429c1, expires: 2026-10-29 06:00:41, pwd_given: no
+2026-10-22 06:00:41 - Share link generated: http://localhost/file_storage/share.php?token=68e03ad25e7955918b3bf871f9e429c1
+2026-10-22 06:03:39 - POST Data: Array
+(
+    [file_id] => 79
+    [expires_at] => 
+    [share_password] => 
+)
+
+2026-10-22 06:03:39 - file_id: 79, token: 0e91bab25a541814f71c46394a484582, expires: 2026-10-29 06:03:39, pwd_given: no
+2026-10-22 06:03:39 - Share link generated: http://localhost/file_storage/share.php?token=0e91bab25a541814f71c46394a484582
+2026-10-22 06:35:34 - POST Data: Array
+(
+    [file_id] => 89
+    [expires_at] => 
+    [share_password] => 
+)
+
+2026-10-22 06:35:34 - file_id: 89, token: 4b2f9f14958b07dc7cade52f977b1b34, expires: 2026-10-29 06:35:34, pwd_given: no
+2026-10-22 06:35:34 - Share link generated: http://localhost/file_storage/share.php?token=4b2f9f14958b07dc7cade52f977b1b34
+2026-10-22 08:50:12 - POST Data: Array
+(
+    [file_id] => 100
+)
+
+2026-10-22 08:50:12 - file_id: 100, token: 992e3188489695f3fceb41db4c4d2c61, expires: 2026-10-29 08:50:12, pwd_given: no
+2026-10-22 08:50:12 - Share link generated: http://localhost/file_storage/share.php?token=992e3188489695f3fceb41db4c4d2c61
+2026-10-22 08:50:13 - POST Data: Array
+(
+    [share_password] => audit-test-only
+    [file_id] => 101
+)
+
+2026-10-22 08:50:13 - file_id: 101, token: 889774d61bd9a12ba9236d2cf966bf9f, expires: , pwd_given: yes
+2026-10-22 08:50:13 - Share link generated: http://localhost/file_storage/share.php?token=889774d61bd9a12ba9236d2cf966bf9f
+2026-10-22 08:50:40 - POST Data: Array
+(
+    [file_id] => 105
+)
+
+2026-10-22 08:50:40 - file_id: 105, token: 164a53a2a2df4f4fbef05783f96e31b1, expires: 2026-10-29 08:50:40, pwd_given: no
+2026-10-22 08:50:40 - Share link generated: http://localhost/file_storage/share.php?token=164a53a2a2df4f4fbef05783f96e31b1
+2026-10-22 08:51:00 - POST Data: Array
+(
+    [file_id] => 106
+)
+
+2026-10-22 08:51:00 - file_id: 106, token: 1587548994cfc48ef4f474a255062f7e, expires: 2026-10-29 08:51:00, pwd_given: no
+2026-10-22 08:51:00 - Share link generated: http://localhost/file_storage/share.php?token=1587548994cfc48ef4f474a255062f7e
+2026-10-22 08:51:22 - POST Data: Array
+(
+    [file_id] => 107
+)
+
+2026-10-22 08:51:22 - file_id: 107, token: 0a8efef92a87bdfe8ee4447f4c729ae6, expires: 2026-10-29 08:51:22, pwd_given: no
+2026-10-22 08:51:22 - Share link generated: http://localhost/file_storage/share.php?token=0a8efef92a87bdfe8ee4447f4c729ae6
+2026-10-22 08:51:57 - POST Data: Array
+(
+    [file_id] => 108
+)
+
+2026-10-22 08:51:57 - file_id: 108, token: a93a307ed9144789b5a25a7afdc6ebc3, expires: 2026-10-29 08:51:57, pwd_given: no
+2026-10-22 08:51:57 - Share link generated: http://localhost/file_storage/share.php?token=a93a307ed9144789b5a25a7afdc6ebc3
+2026-10-22 18:04:37 - POST Data: Array
+(
+    [file_id] => 109
+)
+
+2026-10-22 18:04:37 - file_id: 109, token: f80a901f196e803c26bbfc3be5a1dcf7, expires: 2026-10-29 18:04:37, pwd_given: no
+2026-10-22 18:04:37 - Share link generated: http://localhost/file_storage/share.php?token=f80a901f196e803c26bbfc3be5a1dcf7
+2026-10-22 18:05:16 - POST Data: Array
+(
+    [file_id] => 110
+)
+
+2026-10-22 18:05:16 - file_id: 110, token: 27ac78b3cf6a44d4040cc81accfd4f0e, expires: 2026-10-29 18:05:16, pwd_given: no
+2026-10-22 18:05:16 - Share link generated: http://localhost/file_storage/share.php?token=27ac78b3cf6a44d4040cc81accfd4f0e
+2026-10-22 18:34:42 - POST Data: Array
+(
+    [file_id] => 155
+)
+
+2026-10-22 18:34:42 - file_id: 155, token: bf028be4a34034699b6574a1f78995a3, expires: 2026-10-29 18:34:42, pwd_given: no
+2026-10-22 18:34:42 - Share link generated: http://localhost/file_storage/share.php?token=bf028be4a34034699b6574a1f78995a3
+2026-10-22 18:35:11 - POST Data: Array
+(
+    [file_id] => 156
+)
+
+2026-10-22 18:35:11 - file_id: 156, token: 265304e58a8290f64a9c2cbe02503b07, expires: 2026-10-29 18:35:11, pwd_given: no
+2026-10-22 18:35:11 - Share link generated: http://localhost/file_storage/share.php?token=265304e58a8290f64a9c2cbe02503b07
+2026-10-22 18:38:41 - POST Data: Array
+(
+    [file_id] => 158
+)
+
+2026-10-22 18:38:41 - file_id: 158, token: 2d3c03dce7a34e992530df3914327daa, expires: 2026-10-29 18:38:41, pwd_given: no
+2026-10-22 18:38:41 - Share link generated: http://localhost/file_storage/share.php?token=2d3c03dce7a34e992530df3914327daa
+2026-10-22 18:38:46 - POST Data: Array
+(
+    [file_id] => 163
+)
+
+2026-10-22 18:38:46 - file_id: 163, token: 8820e9a711cbbf275c932e6fae8dea41, expires: 2026-10-29 18:38:46, pwd_given: no
+2026-10-22 18:38:46 - Share link generated: http://localhost/file_storage/share.php?token=8820e9a711cbbf275c932e6fae8dea41
+2026-10-22 18:39:46 - POST Data: Array
+(
+    [file_id] => 164
+)
+
+2026-10-22 18:39:46 - file_id: 164, token: 1a4736cd907816d05b289d70c26f95f2, expires: 2026-10-29 18:39:46, pwd_given: no
+2026-10-22 18:39:46 - Share link generated: http://localhost/file_storage/share.php?token=1a4736cd907816d05b289d70c26f95f2
+2026-10-22 18:59:46 - POST Data: Array
+(
+    [file_id] => 166
+)
+
+2026-10-22 18:59:46 - file_id: 166, token: f4efeddaf20b903036d0d95d2494a24e, expires: 2026-10-29 18:59:46, pwd_given: no
+2026-10-22 18:59:46 - Share link generated: http://localhost/file_storage/share.php?token=f4efeddaf20b903036d0d95d2494a24e
+2026-10-22 19:08:51 - POST Data: Array
+(
+    [file_id] => 168
+)
+
+2026-10-22 19:08:51 - file_id: 168, token: 3fddb9093c4edc64beb989d44d36a36c, expires: 2026-10-29 19:08:51, pwd_given: no
+2026-10-22 19:08:51 - Share link generated: http://localhost/file_storage/share.php?token=3fddb9093c4edc64beb989d44d36a36c
+2026-10-22 19:14:54 - POST Data: Array
+(
+    [file_id] => 170
+)
+
+2026-10-22 19:14:54 - file_id: 170, token: 9b30955124bacc0fae47d9e43569c395, expires: 2026-10-29 19:14:54, pwd_given: no
+2026-10-22 19:14:54 - Share link generated: http://localhost/file_storage/share.php?token=9b30955124bacc0fae47d9e43569c395
+2026-10-22 19:14:56 - POST Data: Array
+(
+    [share_password] => audit-test-only
+    [file_id] => 171
+)
+
+2026-10-22 19:14:56 - file_id: 171, token: 5add78f015d552d73ff672ea7346c526, expires: , pwd_given: yes
+2026-10-22 19:14:56 - Share link generated: http://localhost/file_storage/share.php?token=5add78f015d552d73ff672ea7346c526
+2026-10-22 19:15:00 - POST Data: Array
+(
+    [file_id] => 175
+)
+
+2026-10-22 19:15:00 - file_id: 175, token: ab12cdfa0e208db92359f7b58d0e5f0c, expires: 2026-10-29 19:15:00, pwd_given: no
+2026-10-22 19:15:00 - Share link generated: http://localhost/file_storage/share.php?token=ab12cdfa0e208db92359f7b58d0e5f0c

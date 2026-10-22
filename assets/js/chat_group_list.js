@@ -13,7 +13,7 @@
       const links = data.groups.map(group => {
         const link = document.createElement('a');
         link.className = 'conversation-item';
-        link.href = 'group_chat.php?group=' + Number(group.id);
+        link.href = 'chat_history.php?group=' + Number(group.id);
         link.dataset.username = group.name.toLocaleLowerCase('zh-TW');
         link.hidden = !link.dataset.username.includes(keyword);
         const row = document.createElement('div');

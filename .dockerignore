@@ -5,7 +5,7 @@
 .env.*
 tests
 migrations
-GROUPS_V3.md
+docs/
 *.sql
 *.log
 debug_log.txt

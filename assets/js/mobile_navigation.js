@@ -29,12 +29,21 @@
   }
   document.body.appendChild(nav);
   const mobile = matchMedia('(max-width: 991.98px)');
+  trigger.addEventListener('click', event => {
+    if (!mobile.matches) return;
+    event.preventDefault(); event.stopImmediatePropagation();
+    if (currentPage !== 'notifications.php') location.href = 'notifications.php';
+  }, true);
   function updateLayout() {
     window.bootstrap?.Dropdown.getInstance(trigger)?.hide();
     document.body.classList.toggle('has-mobile-navigation', mobile.matches);
     if (mobile.matches) {
+      trigger.removeAttribute('data-bs-toggle');
+      notifications.querySelector('.notification-dropdown')?.classList.remove('show');
       nav.appendChild(notifications);
+      if (currentPage === 'notifications.php') trigger.setAttribute('aria-current', 'page');
     } else {
+      trigger.setAttribute('data-bs-toggle', 'dropdown');
       originalPosition.after(notifications);
     }
     // A Bootstrap dropdown caches its positioning parent. Recreate after moving.

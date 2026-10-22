@@ -1,12 +1,13 @@
 <?php
 session_start();
 if (!isset($_SESSION['user_id'])) { http_response_code(401); exit('請先登入'); }
-require 'config.php';
+require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/group_service.php';
 try {
     ensureGroupSchema($pdo);
     $groupId = (int) ($_GET['group_id'] ?? 0);
     groupMember($pdo, $groupId, (int) $_SESSION['user_id']);
+    cleanupMissingGroupFiles($pdo, $groupId, (int) $_SESSION['user_id']);
     $message = groupMessage($pdo, $groupId, (int) ($_GET['message_id'] ?? 0));
     if ($message['kind'] !== 'file') throw new OutOfBoundsException('找不到檔案');
     $path = groupPrivateFile($message['file_path']);

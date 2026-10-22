@@ -1,6 +1,6 @@
 <?php
 session_start();
-require 'config.php';
+require_once __DIR__ . '/config.php';
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate');
 
@@ -30,15 +30,22 @@ try {
     $counts = $stmt->fetch(PDO::FETCH_ASSOC);
     
     // 獲取最近10條通知
+    $limit = isset($_GET['page_view']) ? 100 : 10;
     $notifStmt = $pdo->prepare("
-        SELECT n.id, n.sender_id, n.type, n.message, n.created_at, n.is_read, u.username as sender_name, gl.group_id
+        SELECT n.id, n.sender_id, n.type, n.message, n.created_at, n.is_read, u.username as sender_name, gl.group_id,
+            CASE WHEN gl.notification_id IS NULL THEN 1
+                 WHEN gm.notification_mode = 'mute' THEN 0
+                 WHEN gm.notification_mode = 'mentions' THEN
+                   CASE WHEN EXISTS (SELECT 1 FROM chat_group_mentions mention
+                     WHERE mention.message_id = gl.message_id AND mention.user_id = n.recipient_id) THEN 1 ELSE 0 END
+                 ELSE 1 END AS sound_allowed
         FROM notifications n
         LEFT JOIN users u ON n.sender_id = u.user_id
         LEFT JOIN chat_group_notification_links gl ON gl.notification_id = n.id
         LEFT JOIN chat_group_members gm ON gm.group_id = gl.group_id AND gm.user_id = n.recipient_id
         WHERE n.recipient_id = ? AND (gl.notification_id IS NULL OR gm.user_id IS NOT NULL)
         ORDER BY n.created_at DESC, n.id DESC
-        LIMIT 10
+        LIMIT $limit
     ");
     $notifStmt->execute([$userId]);
     $notifications = $notifStmt->fetchAll(PDO::FETCH_ASSOC);

@@ -1,11 +1,13 @@
 <?php
 
 session_start();
-require 'config.php';
-require_once 'preview_tokens.php';
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/preview_tokens.php';
 
 
 $user_id = $_SESSION['user_id'] ?? null;
+require_once __DIR__ . '/file_cleanup.php';
+if ($user_id) cleanupMissingUserFiles($pdo, (int) $user_id);
 
 $error = '';
 
@@ -54,7 +56,7 @@ if (
     try {
         ensurePreviewTokensTable($pdo);
         $stmt = $pdo->prepare("
-            SELECT f.original_filename, f.stored_filename, f.file_size
+            SELECT f.file_id, f.user_id, f.original_filename, f.stored_filename, f.file_size
             FROM preview_tokens pt
             INNER JOIN files f ON f.file_id = pt.file_id
             WHERE pt.token = ?
@@ -94,6 +96,7 @@ if (
 
 
     if (!is_file($path)) {
+        cleanupMissingUserFiles($pdo, (int) $file['user_id'], (int) $file['file_id']);
 
         http_response_code(404);
 
@@ -485,6 +488,7 @@ if (isset($_GET['token'])) {
 
     $stmt = $pdo->prepare("
         SELECT
+            f.file_id, f.user_id,
             f.original_filename,
             f.stored_filename
         FROM file_shares s
@@ -493,6 +497,7 @@ if (isset($_GET['token'])) {
             ON s.file_id = f.file_id
 
         WHERE s.share_token = ?
+          AND (s.share_password IS NULL OR s.share_password = '')
 
           AND (
               s.expires_at IS NULL
@@ -597,6 +602,7 @@ if (isset($_GET['token'])) {
         }
 
 
+        cleanupMissingUserFiles($pdo, (int) $file['user_id'], (int) $file['file_id']);
         $error = '檔案不存在';
 
     } else {
@@ -895,7 +901,7 @@ if ($user_id) {
 
 
     <link
-        href="assets/css/responsive.css?v=20260928-7"
+        href="assets/css/responsive.css?v=20261022-2"
         rel="stylesheet"
     >
 

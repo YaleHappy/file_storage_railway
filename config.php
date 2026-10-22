@@ -32,4 +32,6 @@ try {
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
-?>
+
+require_once __DIR__ . '/account_access.php';
+enforceStorageAccount($pdo);

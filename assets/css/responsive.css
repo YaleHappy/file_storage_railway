@@ -4,6 +4,9 @@
 .navbar-session-actions { display: flex; align-items: center; }
 .notification-bell { font-size: 1.2rem; line-height: 1; }
 .mobile-notification-label, .mobile-bottom-nav { display: none; }
+@media (max-width: 991.98px) {
+  .mobile-bottom-nav .notification-dropdown { display: none !important; }
+}
 .navbar-notifications #notificationDropdown {
   display: inline-flex;
   align-items: center;

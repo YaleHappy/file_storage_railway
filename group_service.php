@@ -1,5 +1,8 @@
 <?php
 require_once __DIR__ . '/group_schema.php';
+require_once __DIR__ . '/file_cleanup.php';
+require_once __DIR__ . '/cloud_storage.php';
+require_once __DIR__ . '/account_access.php';
 
 function groupQuery(PDO $pdo, string $sql, array $params = []): PDOStatement
 {
@@ -33,15 +36,17 @@ function groupText(string $text, int $limit, string $label, bool $allowEmpty = f
 
 function groupList(PDO $pdo, int $userId): array
 {
+    $ids = groupQuery($pdo, 'SELECT group_id FROM chat_group_members WHERE user_id = ?', [$userId])->fetchAll(PDO::FETCH_COLUMN);
+    foreach ($ids as $id) cleanupMissingGroupFiles($pdo, (int) $id, $userId);
     return groupQuery($pdo, "SELECT g.id, g.name, g.created_at, m.notification_mode,
         (SELECT COUNT(*) FROM chat_group_members mm WHERE mm.group_id = g.id) AS member_count,
         (SELECT COUNT(*) FROM chat_group_messages msg WHERE msg.group_id = g.id AND msg.id > m.last_read_id
             AND msg.sender_id <> m.user_id AND msg.recalled_at IS NULL) AS unread_count,
         (SELECT CASE WHEN msg.recalled_at IS NOT NULL THEN '已收回訊息' WHEN msg.kind = 'file'
             THEN msg.original_filename ELSE msg.content END FROM chat_group_messages msg
-            WHERE msg.group_id = g.id ORDER BY msg.id DESC LIMIT 1) AS last_content,
-        (SELECT MAX(id) FROM chat_group_messages WHERE group_id = g.id) AS last_message_id,
-        COALESCE((SELECT MAX(created_at) FROM chat_group_messages WHERE group_id = g.id), g.created_at) AS last_event_at
+            WHERE msg.group_id = g.id AND msg.recalled_at IS NULL ORDER BY msg.id DESC LIMIT 1) AS last_content,
+        (SELECT MAX(id) FROM chat_group_messages WHERE group_id = g.id AND recalled_at IS NULL) AS last_message_id,
+        COALESCE((SELECT MAX(created_at) FROM chat_group_messages WHERE group_id = g.id AND recalled_at IS NULL), g.created_at) AS last_event_at
         FROM chat_groups g JOIN chat_group_members m ON m.group_id = g.id WHERE m.user_id = ?
         ORDER BY last_event_at DESC, g.id DESC", [$userId])->fetchAll(PDO::FETCH_ASSOC);
 }
@@ -86,13 +91,27 @@ function groupMessage(PDO $pdo, int $groupId, int $messageId): array
     return $message;
 }
 
-function groupNotify(PDO $pdo, int $groupId, int $messageId, int $senderId, array $mentions): void
+function groupResolveMentions(PDO $pdo, int $groupId, string $content, array $input = []): array
+{
+    $people = groupQuery($pdo, 'SELECT u.user_id, u.username FROM users u JOIN chat_group_members m ON m.user_id = u.user_id WHERE m.group_id = ?', [$groupId])->fetchAll(PDO::FETCH_ASSOC);
+    $all = array_map('intval', array_column($people, 'user_id'));
+    $ids = array_map('intval', (array) ($input['mentions'] ?? []));
+    foreach ($people as $person) {
+        if (preg_match('/(?<![\p{L}\p{N}_@])@' . preg_quote($person['username'], '/') . '(?=$|[\s，。！？,.!?：:；;])/u', $content)) $ids[] = (int) $person['user_id'];
+    }
+    if (!empty($input['mention_all']) || preg_match('/(?<![\p{L}\p{N}_@])@(所有人|all|everyone)(?=$|[\s，。！？,.!?：:；;])/iu', $content)) $ids = $all;
+    if (array_diff($ids, $all)) throw new InvalidArgumentException('只能提及目前群組成員');
+    return array_values(array_unique($ids));
+}
+
+function groupNotify(PDO $pdo, int $groupId, int $messageId, int $senderId, array $mentions, ?array $onlyRecipients = null): void
 {
     $members = groupQuery($pdo, 'SELECT user_id, notification_mode FROM chat_group_members WHERE group_id = ?', [$groupId])->fetchAll(PDO::FETCH_ASSOC);
     $name = groupQuery($pdo, 'SELECT name FROM chat_groups WHERE id = ?', [$groupId])->fetchColumn();
     $sender = groupQuery($pdo, 'SELECT username FROM users WHERE user_id = ?', [$senderId])->fetchColumn();
     foreach ($members as $member) {
         $id = (int) $member['user_id'];
+        if ($onlyRecipients !== null && !in_array($id, $onlyRecipients, true)) continue;
         $mentioned = in_array($id, $mentions, true);
         if ($id === $senderId || $member['notification_mode'] === 'mute'
             || ($member['notification_mode'] === 'mentions' && !$mentioned)) continue;
@@ -122,6 +141,10 @@ function groupStoreFile(array $upload, ?string $cloudSource = null): array
     if ($size === false || $size < 0 || $size > 100 * 1024 * 1024) throw new InvalidArgumentException('檔案不可超過 100MB');
     $directory = groupStorageDirectory();
     if (!is_dir($directory) && !mkdir($directory, 0755, true) && !is_dir($directory)) throw new RuntimeException('無法建立儲存目錄');
+    // XAMPP/local Apache needs the same direct-access protection as Docker.
+    if (!is_file($directory . '/.htaccess') && file_put_contents($directory . '/.htaccess', "Require all denied\n", LOCK_EX) === false) {
+        throw new RuntimeException('無法設定群組檔案存取保護');
+    }
     $filename = bin2hex(random_bytes(24)) . '.bin';
     $target = groupPrivateFile($filename);
     $ok = $cloudSource !== null ? copy($cloudSource, $target) : move_uploaded_file($upload['tmp_name'], $target);
@@ -137,15 +160,18 @@ function groupRemoveMessageNotifications(PDO $pdo, int $messageId): void
 
 function groupAction(PDO $pdo, int $groupId, int $userId, string $action, array $input, ?array $upload = null): array
 {
+    cleanupMissingGroupFiles($pdo, $groupId, $userId);
     $storedFile = null;
     $cloudCopy = null;
     $recalledFile = null;
+    $dissolvedFiles = [];
     $pdo->beginTransaction();
     try {
         // Serialize membership changes, sends and downloads against the group.
         $lock = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql' ? ' FOR UPDATE' : '';
         groupQuery($pdo, 'SELECT id FROM chat_groups WHERE id = ?' . $lock, [$groupId])->fetchColumn();
         $member = groupMember($pdo, $groupId, $userId);
+        if(in_array($action,['send','file'],true) && storageGroupPaused($pdo,$groupId)) throw new DomainException('此群組已由管理員暫停傳送訊息與檔案');
         $messageId = (int) ($input['message_id'] ?? 0);
         switch ($action) {
             case 'send':
@@ -153,15 +179,7 @@ function groupAction(PDO $pdo, int $groupId, int $userId, string $action, array 
                 $content = groupText((string) ($input['content'] ?? ''), 2000, '訊息', $action === 'file');
                 $replyId = (int) ($input['reply_to_id'] ?? 0);
                 if ($replyId) groupMessage($pdo, $groupId, $replyId);
-                $mentions = array_values(array_unique(array_map('intval', (array) ($input['mentions'] ?? []))));
-                $allIds = array_map('intval', groupQuery($pdo, 'SELECT user_id FROM chat_group_members WHERE group_id = ?', [$groupId])->fetchAll(PDO::FETCH_COLUMN));
-                $memberNames = groupQuery($pdo, 'SELECT u.user_id, u.username FROM users u JOIN chat_group_members m ON m.user_id = u.user_id WHERE m.group_id = ?', [$groupId])->fetchAll(PDO::FETCH_ASSOC);
-                foreach ($memberNames as $person) {
-                    if (preg_match('/(?<!\S)@' . preg_quote($person['username'], '/') . '(?=$|[\s，。！？,.!?])/u', $content)) $mentions[] = (int) $person['user_id'];
-                }
-                if (!empty($input['mention_all']) || preg_match('/(?<!\S)@(所有人|all)(?=$|[\s，。！？,.!?])/iu', $content)) $mentions = $allIds;
-                $mentions = array_values(array_unique($mentions));
-                if (array_diff($mentions, $allIds)) throw new InvalidArgumentException('只能提及目前群組成員');
+                $mentions = groupResolveMentions($pdo, $groupId, $content, $input);
                 if ($action === 'file') {
                     $cloudId = (int) ($input['cloud_file_id'] ?? 0);
                     if ($cloudId) {
@@ -188,13 +206,19 @@ function groupAction(PDO $pdo, int $groupId, int $userId, string $action, array 
                 if ($action === 'edit') {
                     if ($message['kind'] !== 'text') throw new InvalidArgumentException('檔案無法編輯');
                     $content = groupText((string) ($input['content'] ?? ''), 2000, '訊息');
+                    $oldMentions = array_map('intval', groupQuery($pdo, 'SELECT user_id FROM chat_group_mentions WHERE message_id = ?', [$messageId])->fetchAll(PDO::FETCH_COLUMN));
+                    $mentions = groupResolveMentions($pdo, $groupId, $content);
                     groupQuery($pdo, 'UPDATE chat_group_messages SET content = ?, edited_at = CURRENT_TIMESTAMP WHERE id = ?', [$content, $messageId]);
+                    groupQuery($pdo, 'DELETE FROM chat_group_mentions WHERE message_id = ?', [$messageId]);
+                    foreach ($mentions as $id) groupQuery($pdo, 'INSERT INTO chat_group_mentions (message_id, user_id) VALUES (?, ?)', [$messageId, $id]);
+                    groupNotify($pdo, $groupId, $messageId, $userId, $mentions, array_values(array_diff($mentions, $oldMentions)));
                 } else {
                     $recalledFile = $message['kind'] === 'file' ? $message['file_path'] : null;
-                    groupQuery($pdo, "UPDATE chat_group_messages SET content = '', recalled_at = CURRENT_TIMESTAMP, pinned = 0 WHERE id = ?", [$messageId]);
+                    groupQuery($pdo, 'UPDATE chat_group_messages SET reply_to_id = NULL WHERE group_id = ? AND reply_to_id = ?', [$groupId, $messageId]);
                     groupQuery($pdo, 'DELETE FROM chat_group_reactions WHERE message_id = ?', [$messageId]);
                     groupQuery($pdo, 'DELETE FROM chat_group_mentions WHERE message_id = ?', [$messageId]);
                     groupRemoveMessageNotifications($pdo, $messageId);
+                    groupQuery($pdo, 'DELETE FROM chat_group_messages WHERE id = ? AND group_id = ?', [$messageId, $groupId]);
                 }
                 break;
             case 'react':
@@ -208,6 +232,7 @@ function groupAction(PDO $pdo, int $groupId, int $userId, string $action, array 
             case 'save_file':
                 $message = groupMessage($pdo, $groupId, $messageId);
                 if ($message['kind'] !== 'file') throw new InvalidArgumentException('不是檔案訊息');
+                assertCloudNameAvailable($pdo, $userId, $message['original_filename']);
                 $source = groupPrivateFile($message['file_path']);
                 if (!is_file($source)) throw new OutOfBoundsException('原始檔案已遺失');
                 $copyName = bin2hex(random_bytes(24)) . '.bin';
@@ -229,10 +254,35 @@ function groupAction(PDO $pdo, int $groupId, int $userId, string $action, array 
                 groupQuery($pdo, 'UPDATE chat_group_messages SET pinned = ? WHERE id = ?', [$message['pinned'] ? 0 : 1, $messageId]);
                 break;
             case 'settings':
-                groupAdmin($member);
+            case 'save_settings':
+                if ($action === 'settings' || $member['role'] === 'admin') groupAdmin($member);
                 $name = groupText((string) ($input['name'] ?? $member['name']), 80, '群組名稱');
                 $announcement = groupText((string) ($input['announcement'] ?? ''), 2000, '公告', true);
-                groupQuery($pdo, 'UPDATE chat_groups SET name = ?, announcement = ? WHERE id = ?', [$name, $announcement, $groupId]);
+                if ($action === 'settings' || $member['role'] === 'admin') groupQuery($pdo, 'UPDATE chat_groups SET name = ?, announcement = ? WHERE id = ?', [$name, $announcement, $groupId]);
+                if ($action === 'save_settings') {
+                    $mode = (string)($input['mode'] ?? '');
+                    if (!in_array($mode, ['all','mentions','mute'], true)) throw new InvalidArgumentException('無效的通知設定');
+                    groupQuery($pdo, 'UPDATE chat_group_members SET notification_mode = ? WHERE group_id = ? AND user_id = ?', [$mode,$groupId,$userId]);
+                }
+                break;
+            case 'transfer_owner':
+                if ((int)$member['owner_id'] !== $userId) throw new DomainException('只有群主可以轉移群主');
+                $target = (int)($input['user_id'] ?? 0);
+                if ($target === $userId || !groupQuery($pdo, 'SELECT user_id FROM chat_group_members WHERE group_id=? AND user_id=?', [$groupId,$target])->fetchColumn()) throw new InvalidArgumentException('請選擇其他群組成員');
+                groupQuery($pdo, "UPDATE chat_group_members SET role='member' WHERE group_id=? AND user_id=?", [$groupId,$userId]);
+                groupQuery($pdo, "UPDATE chat_group_members SET role='admin' WHERE group_id=? AND user_id=?", [$groupId,$target]);
+                groupQuery($pdo, 'UPDATE chat_groups SET owner_id=? WHERE id=?', [$target,$groupId]);
+                break;
+            case 'dissolve':
+                if ((int)$member['owner_id'] !== $userId) throw new DomainException('只有群主可以解散群組');
+                $dissolvedFiles = groupQuery($pdo, "SELECT file_path FROM chat_group_messages WHERE group_id=? AND kind='file'", [$groupId])->fetchAll(PDO::FETCH_COLUMN);
+                foreach (['chat_group_mentions','chat_group_reactions'] as $table) groupQuery($pdo, "DELETE FROM $table WHERE message_id IN (SELECT id FROM chat_group_messages WHERE group_id=?)", [$groupId]);
+                groupQuery($pdo, 'DELETE FROM notifications WHERE id IN (SELECT notification_id FROM chat_group_notification_links WHERE group_id=?)', [$groupId]);
+                groupQuery($pdo, 'DELETE FROM chat_group_notification_links WHERE group_id=?', [$groupId]);
+                groupQuery($pdo, 'DELETE FROM chat_group_messages WHERE group_id=?', [$groupId]);
+                groupQuery($pdo, 'DELETE FROM chat_group_members WHERE group_id=?', [$groupId]);
+                groupQuery($pdo, 'DELETE FROM chat_groups WHERE id=?', [$groupId]);
+                if(cleanupTableExists($pdo,'admin_group_state')) groupQuery($pdo,'DELETE FROM admin_group_state WHERE group_id=?',[$groupId]);
                 break;
             case 'preference':
                 $mode = (string) ($input['mode'] ?? '');
@@ -253,7 +303,8 @@ function groupAction(PDO $pdo, int $groupId, int $userId, string $action, array 
             case 'leave':
                 if ($action === 'remove_member') groupAdmin($member);
                 $id = $action === 'leave' ? $userId : (int) ($input['user_id'] ?? 0);
-                if ((int) $member['owner_id'] === $id) throw new DomainException('建立者需要留在群組，不能退出或被移除');
+                if ((int) $member['owner_id'] === $id) throw new DomainException('請先轉移群主再退出，或選擇解散群組');
+                if (!groupQuery($pdo, 'SELECT user_id FROM chat_group_members WHERE group_id=? AND user_id=?', [$groupId,$id])->fetchColumn()) throw new OutOfBoundsException('成員已不在群組');
                 groupQuery($pdo, 'DELETE FROM chat_group_members WHERE group_id = ? AND user_id = ?', [$groupId, $id]);
                 groupQuery($pdo, 'DELETE FROM notifications WHERE recipient_id = ? AND id IN (SELECT notification_id FROM chat_group_notification_links WHERE group_id = ?)', [$id, $groupId]);
                 break;
@@ -267,6 +318,11 @@ function groupAction(PDO $pdo, int $groupId, int $userId, string $action, array 
             default: throw new InvalidArgumentException('無效的群組操作');
         }
         $pdo->commit();
+        foreach ($dissolvedFiles as $file) {
+            if (!is_string($file) || !preg_match('/^[a-f0-9]{48}\.bin$/D', $file)) continue;
+            $path = groupPrivateFile($file);
+            if (is_file($path) && !@unlink($path)) error_log('群組已解散，但附件副本無法刪除');
+        }
         if ($recalledFile) {
             $path = groupPrivateFile($recalledFile);
             if (is_file($path) && !@unlink($path)) error_log('群組檔案已收回，但實體副本無法刪除');
@@ -283,9 +339,11 @@ function groupAction(PDO $pdo, int $groupId, int $userId, string $action, array 
 function groupSnapshot(PDO $pdo, int $groupId, int $userId, int $before = 0): array
 {
     $group = groupMember($pdo, $groupId, $userId);
+    $group['paused'] = storageGroupPaused($pdo,$groupId);
+    cleanupMissingGroupFiles($pdo, $groupId, $userId);
     $members = groupQuery($pdo, 'SELECT m.user_id, m.role, m.last_read_id, u.username FROM chat_group_members m
         JOIN users u ON u.user_id = m.user_id WHERE m.group_id = ? ORDER BY m.role, u.username', [$groupId])->fetchAll(PDO::FETCH_ASSOC);
-    $sql = 'SELECT m.*, u.username FROM chat_group_messages m JOIN users u ON u.user_id = m.sender_id WHERE m.group_id = ?';
+    $sql = 'SELECT m.*, u.username FROM chat_group_messages m JOIN users u ON u.user_id = m.sender_id WHERE m.group_id = ? AND m.recalled_at IS NULL';
     $params = [$groupId];
     if ($before > 0) { $sql .= ' AND m.id < ?'; $params[] = $before; }
     $messages = array_reverse(groupQuery($pdo, $sql . ' ORDER BY m.id DESC LIMIT 80', $params)->fetchAll(PDO::FETCH_ASSOC));
@@ -304,17 +362,26 @@ function groupSnapshot(PDO $pdo, int $groupId, int $userId, int $before = 0): ar
         if ($message['recalled_at']) { $message['content'] = ''; $message['original_filename'] = null; }
         $message['reactions'] = $message['recalled_at'] ? [] : ($reactions[$message['id']] ?? []);
         $message['mentions'] = $message['recalled_at'] ? [] : ($mentions[$message['id']] ?? []);
-        $message['read_by'] = array_values(array_filter($members, fn($m) => (int) $m['user_id'] !== (int) $message['sender_id'] && (int) $m['last_read_id'] >= (int) $message['id']));
+        $message['read_by'] = (int)$message['sender_id'] === $userId
+            ? array_values(array_filter($members, fn($m) => (int) $m['user_id'] !== (int) $message['sender_id'] && (int) $m['last_read_id'] >= (int) $message['id']))
+            : [];
         $message['reply'] = null;
         if ($message['reply_to_id']) {
             $reply = groupQuery($pdo, 'SELECT m.id, m.content, m.original_filename, m.recalled_at, u.username FROM chat_group_messages m JOIN users u ON u.user_id = m.sender_id WHERE m.id = ? AND m.group_id = ?', [$message['reply_to_id'], $groupId])->fetch(PDO::FETCH_ASSOC);
-            if ($reply && $reply['recalled_at']) { $reply['content'] = '訊息已收回'; $reply['original_filename'] = null; }
+            if ($reply && $reply['recalled_at']) $reply = null;
             $message['reply'] = $reply ?: null;
         }
     }
     unset($message);
     $pins = groupQuery($pdo, 'SELECT id, content, original_filename FROM chat_group_messages WHERE group_id = ? AND pinned = 1 AND recalled_at IS NULL ORDER BY id DESC', [$groupId])->fetchAll(PDO::FETCH_ASSOC);
     $oldest = $messages ? (int) $messages[0]['id'] : 0;
-    $hasOlder = $oldest > 0 && (bool) groupQuery($pdo, 'SELECT id FROM chat_group_messages WHERE group_id = ? AND id < ? LIMIT 1', [$groupId, $oldest])->fetchColumn();
+    $hasOlder = $oldest > 0 && (bool) groupQuery($pdo, 'SELECT id FROM chat_group_messages WHERE group_id = ? AND recalled_at IS NULL AND id < ? LIMIT 1', [$groupId, $oldest])->fetchColumn();
+    foreach ($members as &$member) unset($member['last_read_id']);
+    unset($member);
+    foreach ($messages as &$message) {
+        foreach ($message['read_by'] as &$reader) unset($reader['last_read_id']);
+        unset($reader);
+    }
+    unset($message);
     return ['group' => $group, 'members' => $members, 'messages' => $messages, 'pins' => $pins, 'has_older' => $hasOlder];
 }

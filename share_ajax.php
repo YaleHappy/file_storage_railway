@@ -1,16 +1,10 @@
 <?php
 session_start();
-require 'config.php';
+require_once __DIR__ . '/config.php';
 header('Content-Type: application/json');
 
-// 開發模式除錯設定
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
-// 寫入除錯日誌的函式
-function writeDebugLog($message) {
-    file_put_contents(__DIR__ . '/debug_log.txt', date('Y-m-d H:i:s') . " - " . $message . "\n", FILE_APPEND);
-}
+ini_set('display_errors', '0');
+require_once __DIR__.'/share_expiry.php';
 
 /**
  * ✅ 依目前請求自動組分享連結
@@ -49,7 +43,6 @@ $expires_raw = $_POST['expires_at'] ?? null;
 $pwd         = trim($_POST['share_password'] ?? '');
 
 // 寫入除錯日誌，檢查傳入參數
-writeDebugLog("POST Data: " . print_r($_POST, true));
 
 // 檢查 file_id 是否有效
 if ($file_id === 0) {
@@ -58,6 +51,8 @@ if ($file_id === 0) {
 }
 
 // 3️⃣ 檢查檔案是否在 files 資料表中
+require_once __DIR__ . '/file_cleanup.php';
+cleanupMissingUserFiles($pdo, (int) $_SESSION['user_id'], $file_id);
 $stmt = $pdo->prepare("SELECT file_id, stored_filename FROM files WHERE file_id = ? AND user_id = ?");
 $stmt->execute([$file_id, $_SESSION['user_id']]);
 $fileRow = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -66,7 +61,6 @@ if (!$fileRow) {
     echo json_encode([
         'success' => false,
         'msg' => '檔案不存在或無權限',
-        'debug' => ['file_id' => $file_id, 'user_id' => $_SESSION['user_id']]
     ]);
     exit;
 }
@@ -79,36 +73,23 @@ if (!file_exists($filePath)) {
 }
 
 // 5️⃣ 處理過期時間 expires_at
-$expires = null;
-if (!empty($expires_raw)) {
-    // 你前端是 datetime-local，常見格式：2026-03-02T14:30
-    $dateObj = DateTime::createFromFormat('Y-m-d\TH:i', $expires_raw);
-    if ($dateObj) {
-        $expires = $dateObj->format('Y-m-d H:i:s');
-    } else {
-        echo json_encode(['success' => false, 'msg' => '無效的過期時間格式']);
-        exit;
-    }
-}
-
-// 若沒有指定過期時間且無密碼，預設 7 天後過期
-if (!$expires && empty($pwd)) {
-    $expires = date('Y-m-d H:i:s', strtotime('+7 days'));
-}
-
+try { $expires=parseShareExpiry((string)($expires_raw??'')); }
+catch(InvalidArgumentException $error){http_response_code(400);echo json_encode(['success'=>false,'msg'=>$error->getMessage()]);exit;}
+// Password protection does not change the default lifetime.
+if ($expires===null) $expires=date('Y-m-d H:i:s',strtotime('+7 days'));
 // 6️⃣ 刪除舊的分享紀錄，保證只有最新的一個分享連結有效
-$delStmt = $pdo->prepare("DELETE FROM file_shares WHERE file_id = ?");
-$delStmt->execute([$file_id]);
 
 // 7️⃣ 產生新的 share_token
 $token = bin2hex(random_bytes(16));
 $hashed_pwd = !empty($pwd) ? password_hash($pwd, PASSWORD_DEFAULT) : null;
 
 // 寫入除錯日誌
-writeDebugLog("file_id: {$file_id}, token: {$token}, expires: {$expires}, pwd_given: " . (!empty($pwd) ? 'yes' : 'no'));
 
 // 8️⃣ 插入新的分享紀錄
 try {
+    $pdo->beginTransaction();
+    $delStmt = $pdo->prepare('DELETE FROM file_shares WHERE file_id = ?');
+    $delStmt->execute([$file_id]);
     $insert = $pdo->prepare("
         INSERT INTO file_shares (file_id, share_token, expires_at, share_password)
         VALUES (?, ?, ?, ?)
@@ -116,28 +97,22 @@ try {
     $ok = $insert->execute([$file_id, $token, $expires, $hashed_pwd]);
 
     if (!$ok) {
-        writeDebugLog("INSERT Error: " . print_r($insert->errorInfo(), true));
+        $pdo->rollBack();
         echo json_encode(['success' => false, 'msg' => '無法產生分享紀錄 (INSERT 失敗)']);
         exit;
     }
 
+    $pdo->commit();
     // 9️⃣ 生成分享連結（✅自動依環境）
     $link = buildShareLink($token);
-    writeDebugLog("Share link generated: " . $link);
 
     echo json_encode([
         'success' => true,
-        'link' => $link,
-        'debug' => [
-            'file_id' => $file_id,
-            'expires' => $expires,
-            'pwd_given' => !empty($pwd),
-            'token' => $token
-        ]
+        'link' => $link
     ]);
 
 } catch (PDOException $e) {
-    writeDebugLog("PDOException: " . $e->getMessage());
-    echo json_encode(['success' => false, 'msg' => 'SQL 錯誤: ' . $e->getMessage()]);
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    echo json_encode(['success' => false, 'msg' => '分享連結建立失敗，原有設定已保留，請稍後再試。']);
 }
 exit;

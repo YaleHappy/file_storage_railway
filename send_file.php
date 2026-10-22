@@ -26,8 +26,8 @@ register_shutdown_function(function() {
 });
 
 session_start();
-require 'config.php';
-require 'add_notification.php'; // 引入通知功能
+require_once __DIR__ . '/config.php';
+require __DIR__ . '/add_notification.php'; // 引入通知功能
 
 // 開發階段詳細錯誤報告
 error_reporting(E_ALL);
@@ -59,6 +59,17 @@ if (!isset($_POST['recipient_id']) || empty($_POST['recipient_id'])) {
 $recipient_id = (int) $_POST['recipient_id'];
 $sender_id    = $_SESSION['user_id'];
 
+$recipientCheck = $pdo->prepare('SELECT COUNT(*) FROM users WHERE user_id = ?');
+$recipientCheck->execute([$recipient_id]);
+if ($recipient_id === (int) $sender_id || !$recipientCheck->fetchColumn()) {
+    echo json_encode(['success' => false, 'msg' => '無效的收件人']);
+    exit;
+}
+if (isset($_FILES['file']) && (int) $_FILES['file']['size'] > 100 * 1024 * 1024) {
+    echo json_encode(['success' => false, 'msg' => '檔案不可超過 100MB']);
+    exit;
+}
+
 $file_option = isset($_POST['file_option']) ? $_POST['file_option'] : 'upload';
 
 // 設定共享資料夾 (用來存放傳送後的檔案副本)
@@ -78,6 +89,8 @@ try {
             exit;
         }
         $existingFileId = (int) trim($_POST['existing_file_id']);
+        require_once __DIR__ . '/file_cleanup.php';
+        cleanupMissingUserFiles($pdo, (int) $sender_id, $existingFileId);
         
         // 取出檔案資料：存放檔名與原始檔名
         $stmtFile = $pdo->prepare("SELECT stored_filename, folder_id, original_filename FROM files WHERE file_id = ? AND user_id = ?");

@@ -1,0 +1,14 @@
+#previewModal .modal-content { background:#252842; color:#e8ecfb; border:1px solid #586181; border-radius:16px; overflow:hidden; }
+#previewModal .modal-header,#previewModal .modal-footer { border-color:#454c6b; }
+#previewModal .modal-body { background:#191c30; }
+#previewModal .btn-close:not(.btn-close-white) { filter:invert(1) grayscale(1); }
+#previewModal #previewFrame { background:#191c30; border-radius:8px; }
+body.preview-page { background:#191c30; color:#e8ecfb; color-scheme:dark; }
+.preview-page .preview-header { background:#252842; border:1px solid #586181; border-radius:10px; padding:14px; }
+.preview-page .preview-frame,.preview-page .text-preview,.preview-page .fallback-message,.preview-page .image-container { background:#20243a; color:#e8ecfb; border:1px solid #586181; border-radius:10px; }
+.preview-page .download-button { background:#3e5e91; border:1px solid #7085ac; border-radius:8px; }
+.preview-page .download-button:hover { background:#4a6da5; }
+
+#previewModal { color-scheme:dark; }
+#previewModal .modal-header { background:#252842; color:#e8ecfb; }
+#previewModal .modal-body { padding:12px; scrollbar-color:#626b8d #191c30; }

@@ -1,6 +1,6 @@
 <?php
 session_start();
-require 'config.php';
+require_once __DIR__ . '/config.php';
 
 // 確保沒有其他輸出
 ob_start();
@@ -12,9 +12,7 @@ mb_internal_encoding("UTF-8");
 mb_http_output("UTF-8");
 
 
-// ✅ 加上這兩行來避免 413 問題
-ini_set('upload_max_filesize', '100M');
-ini_set('post_max_size', '100M');
+// Upload limits are configured before request parsing in .htaccess / Docker.
 
 // 防止大檔案上傳超時
 ini_set('max_execution_time', 300);
@@ -23,9 +21,12 @@ $maxTotalSize = 100 * 1024 * 1024;
 $maxFileSize = 100 * 1024 * 1024;
 
 // 驗證 post_max_size
-$maxPostSize = (int)ini_get('post_max_size') * 1024 * 1024;
-if ($_SERVER['CONTENT_LENGTH'] > $maxPostSize) {
-    echo json_encode(["success" => false, "error" => "總檔案大小超過 post_max_size 限制"]);
+$postLimit=trim((string)ini_get('post_max_size'));
+$unit=strtolower(substr($postLimit,-1));
+$maxPostSize=(float)$postLimit * match($unit){'g'=>1073741824,'m'=>1048576,'k'=>1024,default=>1};
+if ($maxPostSize>0 && (int)($_SERVER['CONTENT_LENGTH']??0) > $maxPostSize) {
+    http_response_code(413);
+    echo json_encode(["success" => false, "error" => "上傳內容超過伺服器容量限制，請減少檔案後再試（單檔及每次合計上限 100MB）。"]);
     exit;
 }
 
@@ -35,6 +36,10 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $uploadDir = __DIR__ . '/uploads/';
+require_once __DIR__ . '/folder_access.php';
+if (!ownsStorageFolder($pdo, (int)$_SESSION['user_id'], (int)($_POST['folder_id'] ?? 0))) {
+    http_response_code(403); echo json_encode(['success'=>false,'error'=>'目標資料夾不存在或沒有權限']); exit;
+}
 if (!is_dir($uploadDir) && !@mkdir($uploadDir, 0755, true) && !is_dir($uploadDir)) {
     error_log('無法建立 uploads 目錄');
     ob_clean();
@@ -74,7 +79,13 @@ for ($i = 0; $i < $totalFiles; $i++) {
     $errorCode = $_FILES['files']['error'][$i];
 
     if ($errorCode !== UPLOAD_ERR_OK) {
-        $errors[] = "檔案 $originalName 上傳錯誤 (錯誤碼: $errorCode)";
+        $reason=match($errorCode){
+            UPLOAD_ERR_INI_SIZE,UPLOAD_ERR_FORM_SIZE=>'檔案超過容量限制（單檔最大 100MB）',
+            UPLOAD_ERR_PARTIAL=>'上傳中斷，請重新選擇檔案再試',
+            UPLOAD_ERR_NO_FILE=>'未收到檔案',
+            default=>'伺服器無法接收檔案，請稍後重試',
+        };
+        $errors[] = "檔案 $originalName：$reason";
         continue;
     }
 
@@ -107,6 +118,7 @@ for ($i = 0; $i < $totalFiles; $i++) {
         continue;
     }
 
+    try {
     $stmt = $pdo->prepare("
         INSERT INTO files (user_id, folder_id, original_filename, stored_filename, file_size, created_at)
         VALUES (:uid, :folder, :orig, :stored, :fsize, NOW())
@@ -122,6 +134,11 @@ for ($i = 0; $i < $totalFiles; $i++) {
     if ($result) {
         $successCount++;
     } else {
+        @unlink($targetPath);
+        $errors[] = "檔案 $originalName 無法寫入資料庫";
+    }
+    } catch (Throwable $error) {
+        @unlink($targetPath); error_log("儲存上傳紀錄失敗：" . $error->getMessage());
         $errors[] = "檔案 $originalName 無法寫入資料庫";
     }
 }

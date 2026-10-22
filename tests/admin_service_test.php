@@ -1,0 +1,68 @@
+<?php
+require_once __DIR__.'/../admin_service.php';
+require_once __DIR__.'/../chat_features.php';
+$pdo=new PDO('sqlite::memory:',null,null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
+$pdo->exec("CREATE TABLE users(user_id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT,password TEXT,email TEXT,role TEXT,is_admin INTEGER,status TEXT);
+CREATE TABLE files(file_id INTEGER PRIMARY KEY,user_id INTEGER,folder_id INTEGER,original_filename TEXT,stored_filename TEXT,file_size INTEGER);
+CREATE TABLE folders(folder_id INTEGER PRIMARY KEY,user_id INTEGER,parent_folder INTEGER,folder_name TEXT);
+CREATE TABLE shared_files(id INTEGER PRIMARY KEY,sender_id INTEGER,recipient_id INTEGER,file_path TEXT);
+CREATE TABLE chat_messages(id INTEGER PRIMARY KEY,sender_id INTEGER,recipient_id INTEGER,message TEXT);
+CREATE TABLE notifications(id INTEGER PRIMARY KEY,sender_id INTEGER,recipient_id INTEGER,type TEXT,message TEXT);
+CREATE TABLE file_shares(share_id INTEGER PRIMARY KEY,file_id INTEGER);
+CREATE TABLE preview_tokens(token TEXT,file_id INTEGER,user_id INTEGER);
+CREATE TABLE received_preview_tokens(token TEXT,recipient_id INTEGER);
+CREATE TABLE announcements(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT,content TEXT,start_date TEXT,end_date TEXT,is_active INTEGER,created_at TEXT);
+INSERT INTO users VALUES(1,'admin','x','a@example.com','admin',1,'online'),(2,'member','x','b@example.com','user',0,'online'),(3,'other-admin','x','c@example.com','admin',1,'online');");
+ensureAdminSchema($pdo);ensureChatFeatures($pdo);$checks=0;
+function adminCheck(bool $ok,string $label):void {global $checks;if(!$ok)throw new RuntimeException($label);$checks++;}
+function adminReject(callable $action,string $type):void {global $checks;try{$action();}catch(Throwable $e){if($e instanceof $type){$checks++;return;}throw $e;}throw new RuntimeException('Expected '.$type);}
+adminReject(fn()=>adminAction($pdo,2,'deleteUser',['id'=>3]),DomainException::class);
+adminReject(fn()=>adminAction($pdo,1,'disableUser',['id'=>1]),DomainException::class);
+adminAction($pdo,1,'disableUser',['id'=>2]);adminCheck((int)storageAccountState($pdo,2)['disabled']===1,'Disabled persisted');
+adminCheck((int)storageAccountState($pdo,2)['session_version']===1,'Disable invalidates existing session version');
+adminAction($pdo,1,'restoreUser',['id'=>2]);adminCheck((int)storageAccountState($pdo,2)['session_version']===2,'Restore does not revive old sessions');
+adminAction($pdo,1,'editUser',['id'=>3,'username'=>'other-admin','email'=>'c@example.com','role'=>'user']);
+adminReject(fn()=>requireStorageAdmin($pdo,3),DomainException::class);
+adminReject(fn()=>adminAction($pdo,1,'editUser',['id'=>2,'username'=>'admin','email'=>'b@example.com','role'=>'user']),InvalidArgumentException::class);
+adminQuery($pdo,"INSERT INTO folders VALUES(10,2,0,'parent'),(11,2,10,'child')");
+adminReject(fn()=>adminAction($pdo,1,'deleteFolder',['id'=>10]),DomainException::class);
+adminReject(fn()=>adminAction($pdo,1,'deleteUser',['id'=>2]),DomainException::class);
+$name='admin-unit-'.bin2hex(random_bytes(12)).'.bin';$path=__DIR__.'/../uploads/'.$name;
+if(!is_dir(dirname($path)))mkdir(dirname($path),0755,true);
+file_put_contents($path,'disposable rollback fixture');
+try{
+ adminQuery($pdo,'INSERT INTO files VALUES(20,2,11,?,?,10)',['unit.txt',$name]);
+ adminQuery($pdo,'INSERT INTO file_shares VALUES(30,20)');adminQuery($pdo,"INSERT INTO preview_tokens VALUES('unit',20,2)");
+ adminReject(fn()=>adminAction($pdo,1,'deleteFolder',['id'=>11]),DomainException::class);
+ $pdo->exec("CREATE TRIGGER fail_file_delete BEFORE DELETE ON files BEGIN SELECT RAISE(ABORT,'test rollback'); END");
+ adminReject(fn()=>adminAction($pdo,1,'deleteFile',['id'=>20]),PDOException::class);
+ adminCheck(is_file($path),'Database failure preserves physical file');
+ adminCheck((int)adminQuery($pdo,'SELECT COUNT(*) FROM files WHERE file_id=20')->fetchColumn()===1,'Database failure preserves file record');
+ adminCheck((int)adminQuery($pdo,'SELECT COUNT(*) FROM file_shares WHERE file_id=20')->fetchColumn()===1,'Database failure rolls share deletion back');
+ adminCheck((int)adminQuery($pdo,'SELECT COUNT(*) FROM preview_tokens WHERE file_id=20')->fetchColumn()===1,'Database failure rolls preview deletion back');
+ $pdo->exec('DROP TRIGGER fail_file_delete');
+ adminAction($pdo,1,'deleteFile',['id'=>20]);
+ adminCheck(!is_file($path),'Committed deletion removes physical file');
+ adminCheck((int)adminQuery($pdo,'SELECT COUNT(*) FROM file_shares')->fetchColumn()===0,'Shares removed');
+ adminCheck((int)adminQuery($pdo,'SELECT COUNT(*) FROM preview_tokens')->fetchColumn()===0,'Preview tokens removed');
+ adminAction($pdo,1,'deleteFolder',['id'=>11]);adminAction($pdo,1,'deleteFolder',['id'=>10]);
+ adminCheck((int)adminQuery($pdo,'SELECT COUNT(*) FROM folders')->fetchColumn()===0,'Empty folders removed');
+ adminQuery($pdo,"INSERT INTO chat_messages VALUES(40,2,1,'message'),(41,1,2,'reply')");
+ adminQuery($pdo,"INSERT INTO chat_event_details(event_type,event_id,reply_type,reply_id) VALUES('message',41,'message',40)");
+ adminQuery($pdo,"INSERT INTO chat_event_reactions VALUES('message',40,1,'👍')");
+ adminReject(fn()=>adminAction($pdo,1,'deleteUser',['id'=>2]),DomainException::class);
+ adminAction($pdo,1,'deleteMessage',['id'=>40]);
+ adminCheck(adminQuery($pdo,'SELECT reply_id FROM chat_event_details WHERE event_id=41')->fetchColumn()===null,'Deleted message clears reply reference');
+ adminCheck((int)adminQuery($pdo,'SELECT COUNT(*) FROM chat_event_reactions')->fetchColumn()===0,'Deleted message clears reactions');
+ adminAction($pdo,1,'deleteMessage',['id'=>41]);
+ adminReject(fn()=>adminAction($pdo,1,'createAnnouncement',['title'=>'unit','content'=>'test','start_date'=>'2031-01-01T00:00','end_date'=>'2030-01-01T00:00']),InvalidArgumentException::class);
+ adminReject(fn()=>adminAction($pdo,1,'createAnnouncement',['title'=>'unit','content'=>'test','start_date'=>'2030-02-30T00:00']),InvalidArgumentException::class);
+ $notice=adminAction($pdo,1,'createAnnouncement',['title'=>'unit','content'=>'test']);
+ adminCheck((int)adminQuery($pdo,'SELECT is_active FROM announcements WHERE id=?',[$notice['id']])->fetchColumn()===0,'Announcement defaults inactive');
+ adminAction($pdo,1,'deleteAnnouncement',['id'=>$notice['id']]);
+ adminAction($pdo,1,'deleteUser',['id'=>2]);
+ adminCheck(!adminQuery($pdo,'SELECT user_id FROM users WHERE user_id=2')->fetchColumn(),'Empty account can be removed');
+ adminCheck((int)adminQuery($pdo,'SELECT COUNT(*) FROM admin_account_state WHERE user_id=2')->fetchColumn()===0,'Account state is removed with account');
+ adminCheck((int)adminQuery($pdo,'SELECT COUNT(*) FROM admin_audit_log')->fetchColumn()>0,'Audit log persists');
+ echo "Admin service: $checks checks passed, including database rollback and dependency cleanup.\n";
+}finally{if(is_file($path))unlink($path);}

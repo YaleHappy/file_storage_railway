@@ -1,6 +1,6 @@
 <?php
 session_start();
-require 'config.php';
+require_once __DIR__ . '/config.php';
 header('Content-Type: application/json');
 
 // 確保用戶已登入

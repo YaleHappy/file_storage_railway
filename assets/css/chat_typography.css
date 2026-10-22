@@ -1,0 +1,13 @@
+/* Shared typography for personal and group conversations. */
+body { font-family:system-ui,-apple-system,"Segoe UI","Microsoft JhengHei","Noto Sans TC",sans-serif; }
+.history-shell,.group-shell,.group-dialog { font-family:inherit; }
+.message-text,.group-message-content,.file-event-title { font-size:1rem; line-height:1.6; }
+.file-event-title,.group-message-content.group-file-title { font-weight:600; }
+.message-time,.group-message-meta,.file-event-note { font-size:.8rem; line-height:1.5; font-weight:400; }
+.file-event-actions > .btn,.group-file-actions > .btn { font-family:inherit; font-size:.875rem; line-height:1.5; font-weight:400; }
+.chat-composer input,.chat-composer textarea,.group-composer input,.group-composer textarea { font-family:inherit; font-size:1rem; }
+.file-bubble,.group-bubble:has(.group-file-title) { background:#3a3d67; border:1px solid #ffffff24; }
+.message-row.sent .file-bubble,.group-message.sent .group-bubble:has(.group-file-title) { background:#1858b8; }
+.file-event-actions > .btn,.group-file-actions > .btn { background:transparent; border:1px solid #a0afd0; color:#eff3ff; }
+.file-event-actions > .btn:hover,.group-file-actions > .btn:hover { background:#ffffff14; border-color:#d0dcf5; color:#fff; }
+.file-event-actions > .btn:focus-visible,.group-file-actions > .btn:focus-visible { outline:2px solid #c6d9ff; outline-offset:2px; }

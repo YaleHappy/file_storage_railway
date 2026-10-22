@@ -1,6 +1,6 @@
 <?php
 session_start();
-require 'config.php';
+require_once __DIR__ . '/config.php';
 
 // 如果沒有登入 → 跳回 login
 if (!isset($_SESSION['user_id'])) {
@@ -46,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete'])) {
         ':user_id'  => $_SESSION['user_id']
     ]);
     header('Content-Type: application/json');
-    echo json_encode(['success' => true]);
+    if(!$stmt->rowCount()){http_response_code(404);echo json_encode(['success'=>false,'error'=>'分享連結不存在或已移除']);}else echo json_encode(['success'=>true]);
     exit;
 }
 
@@ -54,65 +54,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete'])) {
 //  (B) 更新到期時間 / 密碼 (AJAX)
 // ==============================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update'])) {
-    $shareId = (int)($_POST['share_id'] ?? 0);
-
-    // 更新到期時間（datetime-local 會是 2026-03-02T14:30）
-    if (isset($_POST['expires_at'])) {
-        $expiresRaw = $_POST['expires_at'];
-
-        $expires = null;
-        if ($expiresRaw !== '') {
-            $dt = DateTime::createFromFormat('Y-m-d\TH:i', $expiresRaw);
-            if ($dt) {
-                $expires = $dt->format('Y-m-d H:i:s');
-            }
-        }
-
-        $sql = "
-            UPDATE file_shares 
-            SET expires_at = ?
-            WHERE share_id = ?
-              AND file_id IN (
-                SELECT file_id FROM files WHERE user_id = ?
-              )
-        ";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([
-            $expires,               // 允許設為 NULL（清空到期）
-            $shareId,
-            $_SESSION['user_id']
-        ]);
+    header('Content-Type: application/json; charset=utf-8');
+    require_once __DIR__.'/share_expiry.php';
+    $shareId=(int)($_POST['share_id']??0);
+    try {
+        $expires=isset($_POST['expires_at'])?parseShareExpiry((string)$_POST['expires_at']):null;
+        $pdo->beginTransaction();
+        $owned=$pdo->prepare('SELECT s.share_id FROM file_shares s JOIN files f ON f.file_id=s.file_id WHERE s.share_id=? AND f.user_id=?'.($pdo->getAttribute(PDO::ATTR_DRIVER_NAME)==='mysql'?' FOR UPDATE':''));
+        $owned->execute([$shareId,$_SESSION['user_id']]);
+        if(!$owned->fetchColumn())throw new OutOfBoundsException('找不到分享連結，或你沒有權限。');
+        if(isset($_POST['expires_at']))$pdo->prepare('UPDATE file_shares SET expires_at=? WHERE share_id=?')->execute([$expires,$shareId]);
+        $password=trim((string)($_POST['share_password']??''));
+        if($password!=='')$pdo->prepare('UPDATE file_shares SET share_password=? WHERE share_id=?')->execute([password_hash($password,PASSWORD_DEFAULT),$shareId]);
+        $pdo->commit();
+        echo json_encode(['success'=>true]);
+    }catch(Throwable $error){
+        if($pdo->inTransaction())$pdo->rollBack();
+        $expected=$error instanceof InvalidArgumentException || $error instanceof OutOfBoundsException;
+        http_response_code($error instanceof InvalidArgumentException?400:($expected?404:500));
+        echo json_encode(['success'=>false,'error'=>$expected?$error->getMessage():'儲存失敗，原有設定已保留，請稍後再試。']);
     }
-
-    // 更新密碼（輸入空白 = 不更新；你也可以改成空白就清除密碼）
-    if (isset($_POST['share_password'])) {
-        $newPwd = trim($_POST['share_password']);
-
-        if ($newPwd !== '') {
-            $hashed = password_hash($newPwd, PASSWORD_DEFAULT);
-
-            $sql = "
-                UPDATE file_shares
-                SET share_password = ?
-                WHERE share_id = ?
-                  AND file_id IN (
-                    SELECT file_id FROM files WHERE user_id = ?
-                  )
-            ";
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute([
-                $hashed,
-                $shareId,
-                $_SESSION['user_id']
-            ]);
-        }
-    }
-
-    header('Content-Type: application/json');
-    echo json_encode(['success' => true]);
     exit;
 }
-
 // ==============================
 //  (C) 分頁設定
 // ==============================
@@ -125,6 +88,7 @@ $offset  = ($page - 1) * $perPage;
 // ==============================
 $sql = "
     SELECT
+      f.file_id,
       f.original_filename,
       s.share_token,
       s.expires_at,
@@ -191,9 +155,11 @@ if (!isset($_SESSION['status']) && isset($_SESSION['user_id'])) {
     .btn-danger { background-color:#e74c3c; border:none; padding:6px 12px; }
     .btn-danger:hover { background-color:#c0392b; }
   </style>
-  <link href="assets/css/responsive.css?v=20261021-1" rel="stylesheet">
+  <link href="assets/css/responsive.css?v=20261022-2" rel="stylesheet">
+<link href="assets/css/file_lists.css?v=20261022-2" rel="stylesheet">
+<link href="assets/css/preview_theme.css?v=20261022-2" rel="stylesheet">
 </head>
-<body class="has-fixed-navbar">
+<body class="has-fixed-navbar file-page">
 
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
   <div class="container">
@@ -237,95 +203,36 @@ if (!isset($_SESSION['status']) && isset($_SESSION['user_id'])) {
   </div>
 </nav>
 
-<div class="container">
-  <div class="table-container mt-4">
-    <h2 class="mb-4 text-center text-info">
-      <i class="bi bi-link-45deg"></i> 我的分享連結
-    </h2>
-
-    <?php if (empty($shares)): ?>
-      <p class="text-center text-muted">目前沒有分享連結。</p>
-    <?php else: ?>
-    <div class="table-responsive">
-      <table class="table table-dark table-hover align-middle text-center">
-        <thead>
-          <tr>
-            <th>檔案名稱</th>
-            <th>分享連結</th>
-            <th>到期日</th>
-            <th>密碼</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody>
-        <?php foreach ($shares as $s):
-          // ✅ 改成自動產生（本機/線上通用）
-          $link = buildShareLink($s['share_token']);
-
-          // datetime-local 需要 "YYYY-MM-DDTHH:MM"
-          $expiresLocal = '';
-          if (!empty($s['expires_at'])) {
-            $expiresLocal = date('Y-m-d\TH:i', strtotime($s['expires_at']));
-          }
-        ?>
-          <tr>
-            <td><?= htmlspecialchars($s['original_filename']) ?></td>
-
-            <td class="link-container">
-              <input type="text" value="<?= htmlspecialchars($link) ?>" readonly>
-              <button class="btn btn-sm btn-copy ms-2" data-link="<?= htmlspecialchars($link) ?>">
-                <i class="bi bi-clipboard"></i> 複製
-              </button>
-            </td>
-
-            <td>
-              <input type="datetime-local"
-                     class="form-control expires"
-                     data-id="<?= (int)$s['share_id'] ?>"
-                     value="<?= htmlspecialchars($expiresLocal) ?>">
-            </td>
-
-            <td>
-              <?php if (!empty($s['share_password'])): ?>
-                <input type="text"
-                       class="form-control password"
-                       data-id="<?= (int)$s['share_id'] ?>"
-                       placeholder="(已設定密碼)"
-                       value="">
-              <?php else: ?>
-                <input type="text"
-                       class="form-control password"
-                       data-id="<?= (int)$s['share_id'] ?>"
-                       placeholder="(未設定)"
-                       value="">
-              <?php endif; ?>
-            </td>
-
-            <td>
-              <button class="btn btn-danger btn-sm delete-btn" data-id="<?= (int)$s['share_id'] ?>">
-                <i class="bi bi-trash"></i> 刪除
-              </button>
-            </td>
-          </tr>
-        <?php endforeach; ?>
-        </tbody>
-      </table>
+<main class="container file-workspace">
+  <header class="file-heading"><div><h1><i class="bi bi-link-45deg"></i> 我的分享</h1><p class="file-muted">共 <?= (int)$totalShares ?> 個分享連結 · 新建立的分享連結預設七天到期，可在設定中調整</p></div></header>
+  <section class="file-panel" aria-label="分享連結列表">
+  <div class="file-toolbar"><input class="file-search" type="search" placeholder="搜尋本頁分享的檔案…" aria-label="搜尋分享檔案"><select class="file-filter" aria-label="分享狀態"><option value="">所有狀態</option><option value="active">分享中</option><option value="soon">即將到期</option><option value="expired">已過期</option></select></div>
+  <?php foreach ($shares as $s):
+    $link = buildShareLink($s['share_token']);
+    $expiry = empty($s['expires_at']) ? null : strtotime($s['expires_at']);
+    $state = $expiry && $expiry <= time() ? 'expired' : ($expiry && $expiry <= time()+259200 ? 'soon' : 'active');
+    $stateText = ['active'=>'分享中','soon'=>'即將到期','expired'=>'已過期'][$state];
+  ?>
+  <article class="file-row" data-name="<?= htmlspecialchars($s['original_filename'], ENT_QUOTES) ?>" data-state="<?= $state ?>">
+    <div class="file-name"><i class="bi bi-file-earmark-text" aria-hidden="true"></i><div><h2 class="file-title" title="<?= htmlspecialchars($s['original_filename'], ENT_QUOTES) ?>"><?= htmlspecialchars($s['original_filename']) ?></h2><span class="file-state <?= $state === 'soon' ? 'warning' : ($state === 'expired' ? 'expired' : '') ?>"><?= $stateText ?></span></div></div>
+    <div><p class="file-muted">到期時間</p><span><?= $expiry ? date('Y/m/d H:i',$expiry) : '無期限' ?></span></div>
+    <div><p class="file-muted">連結密碼</p><span><?= empty($s['share_password']) ? '未設密碼' : '已設密碼' ?></span></div>
+    <div class="file-actions">
+      <a class="btn btn-soft btn-sm file-preview" title="預覽檔案" href="preview.php?file_id=<?= (int)$s['file_id'] ?>" target="_blank" rel="noopener"><i class="bi bi-eye"></i> 預覽</a>
+      <button class="btn btn-primary btn-sm btn-copy" data-link="<?= htmlspecialchars($link,ENT_QUOTES) ?>"><i class="bi bi-clipboard"></i> 複製連結</button>
+      <a class="btn btn-soft btn-sm" href="<?= htmlspecialchars($link,ENT_QUOTES) ?>" target="_blank" rel="noopener" title="開啟分享連結">開啟連結</a>
+      <button class="btn btn-soft btn-sm share-settings" data-id="<?= (int)$s['share_id'] ?>" data-expiry="<?= $expiry ? date('Y-m-d\TH:i',$expiry) : '' ?>" data-name="<?= htmlspecialchars($s['original_filename'],ENT_QUOTES) ?>">設定</button>
+      <button class="btn btn-outline-danger btn-sm delete-btn" data-id="<?= (int)$s['share_id'] ?>">取消分享</button>
     </div>
-
-    <?php if ($totalPages > 1): ?>
-    <nav>
-      <ul class="pagination justify-content-center">
-        <?php for ($i=1;$i<=$totalPages;$i++): ?>
-          <li class="page-item <?= ($i==$page) ? 'active' : '' ?>">
-            <a class="page-link" href="?page=<?= $i ?>"><?= $i ?></a>
-          </li>
-        <?php endfor; ?>
-      </ul>
-    </nav>
-    <?php endif; ?>
-    <?php endif; ?>
-  </div>
-</div>
+  </article>
+  <?php endforeach; ?>
+  <div class="file-empty" id="fileEmpty" <?= $shares ? 'hidden' : '' ?>><i class="bi bi-link-45deg" aria-hidden="true"></i><h2><?= $shares ? '找不到符合的分享' : '還沒有分享連結' ?></h2><p><?= $shares ? '試試其他檔名或狀態。' : '在首頁選擇檔案並建立分享連結，就會顯示在這裡。' ?></p></div>
+  </section>
+  <p class="file-feedback" role="status" id="shareFeedback"></p>
+  <?php if ($totalPages > 1): ?><nav aria-label="分享分頁"><ul class="pagination"><?php for($i=1;$i<=$totalPages;$i++): ?><li class="page-item <?= $i==$page ? 'active' : '' ?>"><a class="page-link" href="?page=<?= $i ?>"><?= $i ?></a></li><?php endfor; ?></ul></nav><?php endif; ?>
+</main>
+<?php require __DIR__ . "/partials/file_preview_dialog.php"; ?>
+<dialog id="shareSettings"><form id="shareSettingsForm"><h2>分享設定</h2><p id="settingsFilename" class="file-muted mb-3"></p><input type="hidden" name="share_id"><label for="shareExpiry" class="form-label">到期時間</label><input id="shareExpiry" type="datetime-local" name="expires_at" class="form-control mb-2"><p class="file-muted mb-3">新建立的分享連結預設七天到期。此處可調整日期，清空後儲存則改為無期限。</p><label for="sharePassword" class="form-label">變更連結密碼</label><input id="sharePassword" type="password" name="share_password" class="form-control" autocomplete="new-password"><p class="file-muted mt-2">留空保留目前密碼。</p><p id="settingsFeedback" class="file-feedback" role="status"></p><div class="d-flex justify-content-end gap-2"><button type="button" class="btn btn-secondary" id="closeShareSettings">取消</button><button type="submit" class="btn btn-primary">儲存設定</button></div></form></dialog>
 
 <script>
 // 更新狀態
@@ -352,59 +259,31 @@ document.querySelectorAll('.status-option').forEach(item => {
   });
 });
 
-// 複製連結
-document.querySelectorAll('.btn-copy').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const link = btn.dataset.link;
-    navigator.clipboard.writeText(link).then(() => alert("分享連結已複製到剪貼簿！"));
-  });
-});
-
-// AJAX 刪除
-document.querySelectorAll('.delete-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    if (confirm("確定要刪除此分享連結嗎？")) {
-      fetch("my_shares.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: `delete=${btn.dataset.id}`
-      })
-      .then(r => r.json())
-      .then(() => location.reload());
-    }
-  });
-});
-
-// AJAX 更新到期時間
-document.querySelectorAll('.expires').forEach(input => {
-  input.addEventListener('change', () => {
-    const shareId = input.dataset.id;
-    const val = encodeURIComponent(input.value);
-    fetch("my_shares.php", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: `update=1&share_id=${shareId}&expires_at=${val}`
-    });
-  });
-});
-
-// AJAX 更新密碼
-document.querySelectorAll('.password').forEach(input => {
-  input.addEventListener('change', () => {
-    const shareId = input.dataset.id;
-    const newPwd  = encodeURIComponent(input.value);
-    fetch("my_shares.php", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: `update=1&share_id=${shareId}&share_password=${newPwd}`
-    });
-  });
+const shareFeedback = document.getElementById('shareFeedback');
+document.querySelectorAll('.btn-copy').forEach(btn => btn.addEventListener('click',async()=>{
+ try { await navigator.clipboard.writeText(btn.dataset.link); shareFeedback.textContent='分享連結已複製'; } catch { shareFeedback.textContent='無法自動複製，請開啟連結後複製網址。'; }
+}));
+document.querySelectorAll('.delete-btn').forEach(btn=>btn.addEventListener('click',async()=>{
+ if(!confirm('確定取消分享？連結將失效，原始檔案仍會保留。')) return;
+ btn.disabled=true;
+ try { const r=await fetch('my_shares.php',{method:'POST',body:new URLSearchParams({delete:btn.dataset.id})}); const d=await r.json(); if(!r.ok||!d.success) throw Error(); location.reload(); } catch { btn.disabled=false; shareFeedback.textContent='取消分享失敗，請重試。'; }
+}));
+const settingsDialog=document.getElementById('shareSettings'),settingsForm=document.getElementById('shareSettingsForm');
+document.querySelectorAll('.share-settings').forEach(btn=>btn.addEventListener('click',()=>{
+ settingsForm.elements.share_id.value=btn.dataset.id; settingsForm.elements.expires_at.value=btn.dataset.expiry; settingsForm.elements.share_password.value=''; document.getElementById('settingsFilename').textContent=btn.dataset.name; document.getElementById('settingsFeedback').textContent=''; settingsDialog.showModal();
+}));
+document.getElementById('closeShareSettings').addEventListener('click',()=>settingsDialog.close());
+settingsForm.addEventListener('submit',async e=>{
+ e.preventDefault(); const btn=settingsForm.querySelector('[type=submit]'); btn.disabled=true;
+ try {const body=new URLSearchParams(new FormData(settingsForm)); body.set('update','1'); const r=await fetch('my_shares.php',{method:'POST',body}); const d=await r.json(); if(!r.ok||!d.success) throw Error(d.error||'儲存失敗'); location.reload();} catch(err){document.getElementById('settingsFeedback').textContent=err.message;btn.disabled=false;}
 });
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="assets/js/file_lists.js?v=20261022-4"></script>
 <script src="assets/js/presence.js?v=20260928-2"></script>
-<script src="assets/js/message_notifications.js?v=20261021-1"></script>
-<script src="assets/js/navbar_notifications.js?v=20261021-1"></script>
+<script src="assets/js/message_notifications.js?v=20261021-5"></script>
+<script src="assets/js/navbar_notifications.js?v=20261022-1"></script>
+<?php require __DIR__ . '/partials/online_users.php'; ?>
 </body>
 </html>

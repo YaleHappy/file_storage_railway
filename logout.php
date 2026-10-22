@@ -1,6 +1,6 @@
 <?php
 session_start();
-require 'config.php';
+require_once __DIR__ . '/config.php';
 
 // 明確登出時立即顯示離線，但保留手動模式供下次登入使用。
 if (isset($_SESSION['user_id'])) {

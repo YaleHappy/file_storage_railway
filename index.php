@@ -1,6 +1,6 @@
 <?php
 session_start();
-require 'config.php';
+require_once __DIR__ . '/config.php';
 
 // 若未登入 → login
 if (!isset($_SESSION['user_id'])) {
@@ -21,7 +21,7 @@ $offset  = ($page - 1) * $perPage;
 
 // (C) 查詢所有資料夾(供移動/下拉選單)
 $stmtFolders = $pdo->prepare("
-    SELECT folder_id, folder_name 
+    SELECT folder_id, folder_name, parent_folder
     FROM folders
     WHERE user_id = ?
     ORDER BY folder_name
@@ -47,6 +47,18 @@ if ($currentFolder !== 0) {
         $currentFolder = 0;
     }
 }
+
+// Build paths only from folders owned by this user; stop on malformed cycles.
+$folderMap = [];
+foreach ($allFolders as $folder) $folderMap[(int)$folder['folder_id']] = $folder;
+function homeFolderTrail(array $map, int $id): array {
+    $trail = []; $seen = [];
+    while ($id && isset($map[$id]) && !isset($seen[$id])) {
+        $seen[$id] = true; array_unshift($trail, $map[$id]); $id = (int)$map[$id]['parent_folder'];
+    }
+    return $trail;
+}
+$folderTrail = homeFolderTrail($folderMap, $currentFolder);
 
 // (E) 計算檔案數 (分頁用)
 $stmtCount = $pdo->prepare("
@@ -321,13 +333,19 @@ html, body {
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
 }
   </style>
-  <link href="assets/css/responsive.css?v=20261021-1" rel="stylesheet">
+  <link href="assets/css/responsive.css?v=20261022-2" rel="stylesheet">
+  <link href="assets/css/home_announcements.css?v=20261022-6" rel="stylesheet">
+<link href="assets/css/share_theme.css?v=20261022-1" rel="stylesheet">
+<link href="assets/css/preview_theme.css?v=20261022-2" rel="stylesheet">
+<link href="assets/css/storage_workspace.css?v=20261022-3" rel="stylesheet">
+<link href="assets/css/cloud_search.css?v=20261022-1" rel="stylesheet">
 </head>
-<body class="has-fixed-navbar">
+<body class="has-fixed-navbar home-page">
 
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
   <div class="container">
     <a class="navbar-brand fw-bold" href="index.php">☁️ 雲上聊頁來</a>
+    <div class="home-nav-search" role="search"><i class="bi bi-search" aria-hidden="true"></i><label class="visually-hidden" for="searchInput">搜尋檔案與資料夾</label><input type="search" id="searchInput" placeholder="搜尋我的雲端..." autocomplete="off"></div>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="切換導覽選單">
       <span class="navbar-toggler-icon"></span>
     </button>
@@ -380,29 +398,13 @@ html, body {
   </div>
 </nav>
 
-<div class="container py-5">
-  <!-- (1) 若非根目錄則顯示資料夾名稱 -->
-  <?php if ($folderName !== ''): ?>
-    <h2 class="mb-4 text-center">
-      <i class="bi bi-folder-fill"></i> <?= htmlspecialchars($folderName) ?>
-    </h2>
-  <?php endif; ?>
+<div class="container py-5" id="storageWorkspace">
+  <header class="storage-heading">
+    <nav aria-label="資料夾路徑"><ol class="storage-breadcrumb"><li><a href="index.php"><i class="bi bi-cloud" aria-hidden="true"></i> 我的雲端</a></li><?php foreach($folderTrail as $crumb): ?><li><?php if((int)$crumb['folder_id'] === $currentFolder): ?><span aria-current="page"><?= htmlspecialchars($crumb['folder_name']) ?></span><?php else: ?><a href="?folder=<?= (int)$crumb['folder_id'] ?>"><?= htmlspecialchars($crumb['folder_name']) ?></a><?php endif; ?></li><?php endforeach; ?></ol></nav>
+    <p>集中整理檔案與資料夾；點選資料夾名稱開啟，或雙擊檔案預覽。</p>
+  </header>
 
-  <!-- (2) 返回上一層 -->
-  <?php if ($currentFolder !== 0): ?>
-    <div class="mb-3">
-      <a href="?folder=<?= $parentFolderId ?>" class="btn btn-light">
-        <i class="bi bi-arrow-left-circle"></i> 返回上一層
-      </a>
-    </div>
-  <?php endif; ?>
-
-  <!-- (3) 建立資料夾按鈕 -->
-  <div class="text-end mb-4">
-    <button class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#createFolderModal">
-      <i class="bi bi-folder-plus"></i> 建立資料夾
-    </button>
-  </div>
+  <?php require __DIR__ . "/partials/cloud_search_results.php"; ?>
 
   <!-- (4) 公告區域：撈取並顯示有效公告 (start_date、end_date、is_active=1) -->
   <?php
@@ -417,42 +419,29 @@ html, body {
   $announcements = $announcementStmt->fetchAll(PDO::FETCH_ASSOC);
   ?>
   <?php if (!empty($announcements)): ?>
-    <div class="row justify-content-center mb-4">
-      <div class="col-md-10">
-        <div class="card bg-dark text-white">
-          <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="m-0">🔔 系統公告</h5>
-          </div>
-          <div class="card-body">
-            <?php foreach ($announcements as $idx => $announcement): ?>
-              <div class="announcement-item mb-3">
-                <h6 class="text-warning"><?= htmlspecialchars($announcement['title']) ?></h6>
-                <p><?= nl2br(htmlspecialchars($announcement['content'])) ?></p>
-                <?php if ($announcement['start_date'] || $announcement['end_date']): ?>
-                  <small class="text-muted">
-                    <?php 
-                    if ($announcement['start_date']) echo '開始：' . $announcement['start_date'] . '　';
-                    if ($announcement['end_date']) echo '結束：' . $announcement['end_date'];
-                    ?>
-                  </small>
-                <?php endif; ?>
+    <details class="home-announcements announcement-compact mb-3">
+      <summary class="announcement-summary">
+        <i class="bi bi-megaphone" aria-hidden="true"></i><strong>系統公告</strong>
+        <span class="announcement-latest"><?= htmlspecialchars($announcements[0]['title'], ENT_QUOTES, 'UTF-8') ?></span>
+        <span class="announcement-count"><?= count($announcements) ?> 則</span>
+        <span class="announcement-expand">展開</span><span class="announcement-collapse">收合</span><i class="bi bi-chevron-down announcement-chevron" aria-hidden="true"></i>
+      </summary>
+      <div class="announcement-list">
+        <?php foreach ($announcements as $announcement): ?>
+          <article class="announcement-item">
+            <h3><?= htmlspecialchars($announcement['title'], ENT_QUOTES, 'UTF-8') ?></h3>
+            <div class="announcement-content"><?= nl2br(htmlspecialchars($announcement['content'], ENT_QUOTES, 'UTF-8')) ?></div>
+            <?php if ($announcement['start_date'] || $announcement['end_date']): ?>
+              <div class="announcement-dates"><i class="bi bi-clock" aria-hidden="true"></i>
+                <?php if ($announcement['start_date']): ?><span>開始 <?= htmlspecialchars(substr($announcement['start_date'],0,16)) ?></span><?php endif; ?>
+                <?php if ($announcement['end_date']): ?><span>截止 <?= htmlspecialchars(substr($announcement['end_date'],0,16)) ?></span><?php endif; ?>
               </div>
-              <?php if ($idx < count($announcements) - 1): ?>
-                <hr class="border-secondary">
-              <?php endif; ?>
-            <?php endforeach; ?>
-          </div>
-        </div>
+            <?php endif; ?>
+          </article>
+        <?php endforeach; ?>
       </div>
-    </div>
+    </details>
   <?php endif; ?>
-
-  <!-- (5) 搜尋輸入框 (置中顯示) -->
-  <div class="row justify-content-center mb-4">
-    <div class="col-md-6">
-      <input type="text" id="searchInput" placeholder="搜尋檔案名稱...">
-    </div>
-  </div>
 
   <!-- (6) 分頁 -->
   <?php if ($totalPages > 1): ?>
@@ -473,18 +462,24 @@ html, body {
     </nav>
   <?php endif; ?>
 
+  <div class="home-storage-toolbar">
+    <div class="storage-primary-actions"><button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#uploadModal"><i class="bi bi-upload" aria-hidden="true"></i> 上傳檔案</button><button class="btn storage-secondary" type="button" data-bs-toggle="modal" data-bs-target="#createFolderModal"><i class="bi bi-folder-plus" aria-hidden="true"></i> 新增資料夾</button><?php if($currentFolder): ?><a class="btn storage-secondary" href="?folder=<?= (int)$parentFolderId ?>"><i class="bi bi-arrow-up" aria-hidden="true"></i> 上一層</a><?php endif; ?></div>
+    <div class="storage-selection"><span id="selectedFileCount" role="status">未選取檔案</span><button id="clearFileSelection" type="button" class="btn btn-sm storage-secondary" hidden>取消選取</button><button id="bulkDeleteBtn" type="button" class="btn btn-sm btn-outline-danger" disabled>刪除選取檔案</button></div>
+  </div>
+  <h2 class="storage-section-title"><i class="bi bi-folder2" aria-hidden="true"></i> 資料夾</h2>
   <!-- (6) 子資料夾列表 (一行最多4個) -->
-  <div class="row row-cols-1 row-cols-sm-2 row-cols-md-4 g-4 mb-4">
+  <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-3 mb-4" id="folderContainer">
     <?php
     // 查詢該資料夾下的子資料夾
     $stmtSub = $pdo->prepare("
       SELECT folder_id, folder_name, parent_folder
       FROM folders
-      WHERE parent_folder = ? AND user_id = ?
+      WHERE parent_folder = ? AND user_id = ? ORDER BY folder_name
     ");
     $stmtSub->execute([$currentFolder, $_SESSION['user_id']]);
     $subFolders = $stmtSub->fetchAll(PDO::FETCH_ASSOC);
 
+    if (!$subFolders) echo '<p class="storage-empty-note">這一層還沒有資料夾，可按「新增資料夾」開始整理。</p>';
     foreach ($subFolders as $fld):
     ?>
 <div class="col">
@@ -494,31 +489,27 @@ html, body {
        ondragover="folderDragOver(event)"
        ondragleave="folderDragLeave(event)"
        ondrop="folderDrop(event)"
-       ondblclick="goIntoFolder(<?= $fld['folder_id'] ?>)"
+       ondblclick="if (!event.target.closest('a,button,input')) goIntoFolder(<?= (int)$fld['folder_id'] ?>)"
        style="position: relative;">
-    <!-- 勾選框：選取資料夾 -->
-    <input type="checkbox" class="form-check-input select-item" 
-           style="position: absolute; top: 10px; left: 10px;" 
-           value="<?= $fld['folder_id'] ?>">
-    <div class="card-body text-center">
-      <i class="bi bi-folder fs-1"></i>
-      <h6 class="mt-2"><?= htmlspecialchars($fld['folder_name']) ?></h6>
-    </div>
-    <div class="card-footer bg-dark border-0 text-center">
+    <a class="card-body text-center folder-open" href="?folder=<?= (int)$fld['folder_id'] ?>">
+      <i class="bi bi-folder-fill fs-1" aria-hidden="true"></i>
+      <div><h6 class="mt-2"><?= htmlspecialchars($fld['folder_name']) ?></h6><small><span class="folder-desktop-hint">點選名稱或雙擊卡片開啟</span><span class="folder-mobile-hint">點選開啟資料夾</span></small></div>
+    </a>
+    <div class="card-footer border-0 folder-actions">
       <!-- 進入資料夾 -->
       <a href="?folder=<?= $fld['folder_id'] ?>" class="btn btn-sm btn-light">
-        <i class="bi bi-arrow-right-circle"></i>
+        <i class="bi bi-arrow-right-circle" aria-hidden="true"></i> 開啟
       </a>
       <!-- 重命名資料夾 -->
       <button class="btn btn-sm btn-info rename-folder-btn"
               data-id="<?= $fld['folder_id'] ?>"
               data-name="<?= htmlspecialchars($fld['folder_name']) ?>">
-        <i class="bi bi-pencil-square"></i>
+        <i class="bi bi-pencil-square" aria-hidden="true"></i> 重新命名
       </button>
       <!-- 刪除資料夾 -->
       <button class="btn btn-sm btn-danger delete-folder-btn"
               data-id="<?= $fld['folder_id'] ?>">
-        <i class="bi bi-folder-x"></i>
+        <i class="bi bi-folder-x" aria-hidden="true"></i> 刪除
       </button>
     </div>
   </div>
@@ -526,12 +517,9 @@ html, body {
     <?php endforeach; ?>
   </div>
 
-  <div class="container my-3" style="margin-top: 80px;">
-    <button id="bulkDeleteBtn" class="btn btn-danger">刪除選取項目</button>
-  </div>
-
- 
+  <h2 class="storage-section-title"><i class="bi bi-files" aria-hidden="true"></i> 檔案 <small><?= (int)$totalFiles ?> 個</small></h2>
   <!-- (7) 檔案列表 -->
+  <p id="storageSearchEmpty" class="storage-empty-note" role="status" hidden>找不到符合的檔案或資料夾，請換個關鍵字。</p>
   <div class="row row-cols-1 row-cols-sm-2 row-cols-md-4 g-4" id="fileContainer">
     <?php if (empty($files)): ?>
       <p class="text-center text-muted">目前沒有任何檔案</p>
@@ -551,27 +539,12 @@ html, body {
               <small class="text-muted"><?= number_format($f['file_size'] / 1024, 2) ?> KB</small><br>
               <small class="text-muted"><?= substr($f['created_at'], 0, 16) ?></small>
             </div>
-            <div class="card-footer bg-dark border-0 text-center">
-              <!-- 下載 -->
-              <a href="files.php?download=<?= $f['file_id'] ?>" class="btn btn-success btn-sm">
-                <i class="bi bi-download"></i>
-              </a>
-              <!-- 分享 -->
-              <button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#shareModal" data-id="<?= $f['file_id'] ?>">
-                <i class="bi bi-share-fill"></i>
-              </button>
-              <!-- 移動 -->
-              <button class="btn btn-info btn-sm move-btn" data-id="<?= $f['file_id'] ?>">
-                <i class="bi bi-arrow-right-square"></i>
-              </button>
-              <!-- 刪除 -->
-              <a href="files.php?delete=<?= $f['file_id'] ?>" onclick="return confirm('確定刪除？');" class="btn btn-danger btn-sm">
-                <i class="bi bi-trash"></i>
-              </a>
-              <!-- ★★★ 新增「預覽」按鈕 ★★★ -->
-              <button class="btn btn-primary btn-sm" onclick="openPreviewModal(<?= $f['file_id'] ?>)">
-                <i class="bi bi-eye"></i>
-              </button>
+            <div class="card-footer border-0 home-file-actions">
+              <a href="files.php?download=<?= (int)$f['file_id'] ?>" class="btn btn-success btn-sm" title="下載檔案"><i class="bi bi-download" aria-hidden="true"></i> 下載</a>
+              <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#shareModal" data-id="<?= (int)$f['file_id'] ?>" title="產生分享連結"><i class="bi bi-share-fill" aria-hidden="true"></i> 分享</button>
+              <button type="button" class="btn btn-info btn-sm move-btn" data-id="<?= (int)$f['file_id'] ?>" title="移動到資料夾"><i class="bi bi-arrow-right-square" aria-hidden="true"></i> 移動</button>
+              <button type="button" class="btn btn-primary btn-sm" onclick="openPreviewModal(<?= (int)$f['file_id'] ?>)" title="預覽檔案"><i class="bi bi-eye" aria-hidden="true"></i> 預覽</button>
+              <a href="files.php?delete=<?= (int)$f['file_id'] ?>" onclick="return confirm('確定刪除此檔案？');" class="btn btn-danger btn-sm" title="刪除檔案"><i class="bi bi-trash" aria-hidden="true"></i> 刪除</a>
             </div>
           </div>
         </div>
@@ -580,19 +553,6 @@ html, body {
   </div>
 </div>
 
-
-<!-- 右側固定使用者狀態彈出選單 -->
-<div id="userPopup" style="display: none;">
-  <h5>使用者狀態</h5>
-  <ul id="userList" class="list-unstyled">
-    <!-- 使用者列表將由 JS 動態產生 -->
-    <li>載入中…</li>
-  </ul>
-</div>
-<!-- 右側固定切換按鈕 -->
-<button id="toggleUserPopup" type="button" aria-controls="userPopup" aria-expanded="false" title="查看上線使用者">
-  上線使用者
-</button>
 
 <!-- 背景右鍵選單 -->
 <div id="bgContextMenu" class="bg-context-menu">
@@ -671,7 +631,8 @@ html, body {
         <input type="hidden" id="fileId" name="file_id">
         <div class="mb-3">
           <label>到期時間</label>
-          <input type="datetime-local" class="form-control" name="expires_at">
+          <input type="datetime-local" class="form-control" name="expires_at" aria-describedby="shareExpiryHint">
+          <p id="shareExpiryHint" class="small mt-2 mb-0" style="color:#aeb8d4">預設七天：未指定到期時間時，連結將於建立後七天到期。</p>
         </div>
         <div class="mb-3">
           <label>分享密碼</label>
@@ -701,7 +662,7 @@ html, body {
           <label>選擇資料夾</label>
           <select class="form-select" name="target_folder">
             <?php if ($currentFolder != 0): // 若不在根目錄，顯示根目錄選項 ?>
-              <option value="0">根目錄 (uploads)</option>
+              <option value="0">我的雲端（根目錄）</option>
             <?php endif; ?>
             <?php foreach($allFolders as $fld): ?>
               <?php 
@@ -710,7 +671,7 @@ html, body {
               }
               ?>
               <option value="<?= $fld['folder_id'] ?>">
-                <?= htmlspecialchars($fld['folder_name']) ?>
+                <?= htmlspecialchars('我的雲端 / ' . implode(' / ', array_column(homeFolderTrail($folderMap, (int)$fld['folder_id']), 'folder_name'))) ?>
               </option>
             <?php endforeach; ?>
           </select>
@@ -805,12 +766,12 @@ html, body {
 <!-- ★★★ 新增「預覽用」Modal ★★★ -->
 <div class="modal fade" id="previewModal" tabindex="-1">
   <div class="modal-dialog modal-xl">
-    <div class="modal-content">
-      <div class="modal-header">
+    <div class="modal-content" style="background:#252842;color:#e8ecfb;border:1px solid #586181;">
+      <div class="modal-header" style="background:#252842;border-color:#454c6b;">
         <h5 class="modal-title">檔案預覽</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <button type="button" class="btn-close btn-close-white" aria-label="關閉預覽" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body" style="overflow:auto;">
+      <div class="modal-body" style="overflow:auto;background:#191c30;">
         <!-- 這裡用 iframe 來顯示 preview.php 的內容 -->
         <iframe id="previewFrame" style="width:100%; height:600px; border:none;"></iframe>
       </div>
@@ -873,7 +834,7 @@ function getContextMenuOptions(target) {
     const folderName = target.dataset.folderName;
     return `
       <li onclick="window.location.href='?folder=${folderId}'">🔍 開啟資料夾</li>
-      <li onclick="renameFolder('${folderId}', '${folderName}')">✏️ 重新命名資料夾</li>
+      <li onclick="renameFolder('${folderId}', currentTarget.dataset.folderName)">✏️ 重新命名資料夾</li>
       <li onclick="deleteFolder('${folderId}')">❌ 刪除資料夾</li>
     `;
   } else if(target.classList.contains("file-card-inner")) {
@@ -935,35 +896,22 @@ document.addEventListener("click", function() {
   bgContextMenu.style.display = "none";
 });
 function openUploadModal() {
-  const uploadModal = new bootstrap.Modal(document.getElementById('uploadModal'));
+  const uploadModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('uploadModal'));
   uploadModal.show();
 }
 function openCreateFolderModal() {
-  const createFolderModal = new bootstrap.Modal(document.getElementById('createFolderModal'));
+  const createFolderModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('createFolderModal'));
   createFolderModal.show();
 }
 
 // === 資料夾操作函式 ===
 function renameFolder(folderId, folderName) {
-  const newName = prompt("請輸入新的資料夾名稱：", folderName);
-  if(newName && newName.trim() !== "") {
-    const fd = new FormData();
-    fd.append('folder_id', folderId);
-    fd.append('new_name', newName);
-    fetch('folders.php?action=rename', { method:'POST', body: fd })
-      .then(r => r.json())
-      .then(js => {
-        if(js.success) {
-          alert("資料夾已更新");
-          location.reload();
-        } else {
-          alert(js.msg || "更新失敗");
-        }
-      });
-  }
+  document.getElementById('renameFolderId').value = folderId;
+  document.getElementById('renameFolderName').value = folderName;
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('renameFolderModal')).show();
 }
 function deleteFolder(folderId) {
-  if(confirm("確定要刪除此資料夾嗎？")) {
+  if(confirm("確定刪除此資料夾？僅能刪除空資料夾，內有檔案或子資料夾時會保留。")) {
     const fd = new FormData();
     fd.append('folder_id', folderId);
     fetch('folders.php?action=delete', { method:'POST', body: fd })
@@ -986,7 +934,7 @@ function deleteFile(fileId) {
 function openMoveModal(fileId) {
   document.getElementById('moveFileId').value = fileId;
   document.getElementById('moveResult').classList.add('d-none');
-  const moveModalEl = new bootstrap.Modal(document.getElementById('moveModal'));
+  const moveModalEl = bootstrap.Modal.getOrCreateInstance(document.getElementById('moveModal'));
   moveModalEl.show();
 }
 function openShareModal(fileId) {
@@ -994,7 +942,7 @@ function openShareModal(fileId) {
   document.querySelector('[name="expires_at"]').value = '';
   document.querySelector('[name="share_password"]').value = '';
   document.getElementById('shareResult').classList.add('d-none');
-  const shareModalEl = new bootstrap.Modal(document.getElementById('shareModal'));
+  const shareModalEl = bootstrap.Modal.getOrCreateInstance(document.getElementById('shareModal'));
   shareModalEl.show();
 }
 
@@ -1019,6 +967,12 @@ document.getElementById('uploadForm').onsubmit = e => {
   const progress = document.getElementById('uploadProgress');
   const bar      = progress.querySelector('.progress-bar');
   const alertBox = document.getElementById('uploadAlert');
+  const selectedFiles=Array.from(e.target.querySelector('input[type="file"]').files);
+  const maxBytes=100*1024*1024;
+  if(selectedFiles.some(file=>file.size>maxBytes) || selectedFiles.reduce((sum,file)=>sum+file.size,0)>maxBytes){
+    alertBox.textContent='單檔及每次上傳合計上限為 100MB，請減少檔案後再試。';
+    alertBox.style.display='block';return;
+  }
   progress.style.display = 'block';
   bar.style.width = '0%';
   bar.textContent = '0%';
@@ -1043,7 +997,11 @@ document.getElementById('uploadForm').onsubmit = e => {
         alertBox.style.display = 'block';
       }
     } catch (err) {
-      alertBox.textContent = '回傳非 JSON 格式';
+      alertBox.textContent = xhr.status===413
+        ? '伺服器拒絕接收：上傳容量超過限制，請減少檔案後再試。'
+        : xhr.status===401 || xhr.status===403 || xhr.responseURL.includes('login.php')
+          ? '登入已失效，請重新登入後再上傳。'
+          : `伺服器未正常完成上傳（HTTP ${xhr.status}），請稍後再試。`;
       alertBox.style.display = 'block';
     }
   };
@@ -1067,6 +1025,9 @@ document.getElementById('uploadModal').addEventListener('show.bs.modal', () => {
 // Share Modal
 document.getElementById('shareModal').addEventListener('show.bs.modal', e => {
     const triggerBtn = e.relatedTarget;
+    const selectedFile = triggerBtn?.dataset.id || document.getElementById('fileId').value;
+    document.getElementById('shareForm').reset();
+    document.getElementById('fileId').value = selectedFile;
     if (triggerBtn && triggerBtn.dataset.id) {
         document.getElementById('fileId').value = triggerBtn.dataset.id;
     }
@@ -1089,7 +1050,7 @@ document.getElementById('shareForm').onsubmit = async e => {
   }
 };
 // 移動檔案 Modal
-const moveModalEl = new bootstrap.Modal(document.getElementById('moveModal'));
+const moveModalEl = bootstrap.Modal.getOrCreateInstance(document.getElementById('moveModal'));
 document.querySelectorAll('.move-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.getElementById('moveFileId').value = btn.dataset.id;
@@ -1116,7 +1077,7 @@ document.getElementById('moveForm').onsubmit = async e => {
   }
 };
 // 重命名資料夾 Modal
-const renameModal = new bootstrap.Modal(document.getElementById('renameFolderModal'));
+const renameModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('renameFolderModal'));
 document.querySelectorAll('.rename-folder-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const id   = btn.dataset.id;
@@ -1148,7 +1109,7 @@ document.getElementById('renameFolderForm').onsubmit = async e => {
 // 刪除資料夾 (按鈕與右鍵皆適用)
 document.querySelectorAll('.delete-folder-btn').forEach(btn => {
   btn.addEventListener('click', async () => {
-    if (!confirm('確定要刪除此資料夾？(內部檔案也可能會無法顯示)')) return;
+    if (!confirm('確定刪除此空資料夾？內有檔案或子資料夾時不會刪除。')) return;
     const folderId = btn.dataset.id;
     const fd = new FormData();
     fd.append('folder_id', folderId);
@@ -1162,17 +1123,6 @@ document.querySelectorAll('.delete-folder-btn').forEach(btn => {
     }
   });
 });
-// 搜尋檔案
-document.getElementById('searchInput').addEventListener('keyup', function() {
-  const query = this.value.toLowerCase();
-  document.querySelectorAll('.file-card').forEach(card => {
-    const name = card.querySelector('.file-name').textContent.toLowerCase();
-    card.style.display = (name.indexOf(query) !== -1) ? 'block' : 'none';
-  });
-});
-
-
-
   const multiFileInput = document.getElementById('multiFileInput');
   const fileListDiv = document.getElementById('fileList');
 
@@ -1188,114 +1138,14 @@ document.getElementById('searchInput').addEventListener('keyup', function() {
 
     // 逐一顯示檔名
     const files = this.files; // FileList
-    let htmlStr = '<ul style="padding-left: 1.2rem;">';
+    const list = document.createElement('ul'); list.style.paddingLeft = '1.2rem';
     for (let i = 0; i < files.length; i++) {
-      htmlStr += `<li>${files[i].name}</li>`;
+      const item = document.createElement('li'); item.textContent = files[i].name; list.append(item);
     }
-    htmlStr += '</ul>';
-
-    fileListDiv.innerHTML = htmlStr;
+    fileListDiv.replaceChildren(list);
   });
 
-// 切換彈出選單顯示/隱藏
-document.getElementById('toggleUserPopup').addEventListener('click', function(){
-  var popup = document.getElementById('userPopup');
-  var toggleButton = this;
-  
-  if (popup.style.display === 'none' || popup.style.display === '') {
-    popup.style.display = 'block';
-    toggleButton.classList.add('popup-active'); // 添加激活状态类
-    toggleButton.textContent = '關閉使用者列表';  // 更改按钮文字
-    toggleButton.setAttribute('aria-expanded', 'true');
-  } else {
-    popup.style.display = 'none';
-    toggleButton.classList.remove('popup-active'); // 移除激活状态类
-    toggleButton.textContent = '上線使用者';  // 恢复按钮文字
-    toggleButton.setAttribute('aria-expanded', 'false');
-  }
-});
-
-// 点击页面其他地方关闭用户面板
-document.addEventListener('click', function(event) {
-  var popup = document.getElementById('userPopup');
-  var toggleButton = document.getElementById('toggleUserPopup');
-  
-  // 如果点击的不是弹出菜单或切换按钮，且弹出菜单是显示状态，则关闭它
-  if (!event.target.closest('#userPopup') && 
-      !event.target.closest('#toggleUserPopup') && 
-      popup.style.display === 'block') {
-    popup.style.display = 'none';
-    toggleButton.classList.remove('popup-active');
-    toggleButton.textContent = '上線使用者';
-    toggleButton.setAttribute('aria-expanded', 'false');
-  }
-});
-
-
-// 單一 loadUserList 函式定義
-function loadUserList() {
-  fetch('user_status.php')
-    .then(response => response.json())
-    .then(data => {
-      var userList = document.getElementById('userList');
-      userList.innerHTML = '';
-
-// 在 loadUserList 函式中已經有這個邏輯
-if (data.current_status) {
-    document.getElementById('currentStatus').textContent = {
-        online: '🟢 在線',
-        idle: '🌙 閒置',
-        away: '🔴 請勿打擾',
-        hidden: '⚪ 隱形'
-    }[data.current_status] || '⚪ 未知';
-}
-
-      // 嚴格過濾掉當前使用者，確保不會顯示自己
-      let filteredUsers = data.users.filter(user => 
-        ['online', 'idle', 'away'].includes(user.status) &&
-        parseInt(user.user_id) !== parseInt(currentUserId) // 確保類型一致進行比較
-      );
-
-      if (filteredUsers.length === 0) {
-        userList.innerHTML = '<li class="text-muted">目前沒有上線使用者</li>';
-        return;
-      }
-
-      // 優化每個使用者項的顯示結構
-      filteredUsers.forEach(user => {
-        var statusText = {
-          online: '🟢 在線',
-          idle: '🌙 閒置',
-          away: '🔴 請勿打擾'
-        }[user.status] || '⚪ 未知';
-
-        var li = document.createElement('li');
-        
-        // 使用更好的HTML結構
-        li.innerHTML = `
-          <div class="user-info">
-            <span class="user-id">${user.username}</span>
-            <span class="status-text">${statusText}</span>
-          </div>
-          <div class="user-actions">
-            <button class="btn btn-primary chatBtn" data-user="${user.user_id}" data-username="${user.username}">
-              <i class="bi bi-chat-dots"></i> 訊息
-            </button>
-            <button class="btn btn-secondary sendFileBtn" data-user="${user.user_id}" data-username="${user.username}">
-              <i class="bi bi-file-earmark-arrow-up"></i> 檔案
-            </button>
-          </div>
-        `;
-
-        userList.appendChild(li);
-      });
-    })
-    .catch(err => {
-      console.error('載入使用者列表失敗', err);
-      document.getElementById('userList').innerHTML = '<li class="text-muted">無法載入使用者</li>';
-    });
-}
-
+function loadUserList() { window.dispatchEvent(new Event('refresh-online-users')); }
 
   // 當切換 Tab 時，更新隱藏欄位的值
   var uploadTab = document.getElementById('upload-tab');
@@ -1406,7 +1256,7 @@ document.addEventListener('click', function(e) {
     // 將資料設定到傳送檔案 Modal 的隱藏欄位及標題中
     document.getElementById('recipientId').value = user;
     document.getElementById('recipientName').textContent = username;
-    let sendFileModal = new bootstrap.Modal(document.getElementById('sendFileModal'));
+    let sendFileModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('sendFileModal'));
     sendFileModal.show();
   }
 });
@@ -1478,7 +1328,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(checkAndUpdateUserStatus, 5000);
     
     // 每 5 秒重新載入使用者列表
-    setInterval(loadUserList, 3000);
+
 });
 
 setInterval(() => {
@@ -1508,7 +1358,7 @@ function checkInactiveUsers() {
 document.getElementById('bulkDeleteBtn').addEventListener('click', function() {
   console.log("Bulk delete clicked");
   // 收集所有已選取的勾選框
-  let selectedItems = document.querySelectorAll('.select-item:checked');
+  let selectedItems = document.querySelectorAll('.file-card-inner .select-item:checked');
   let ids = [];
   selectedItems.forEach(item => {
      ids.push(item.value);
@@ -1552,18 +1402,29 @@ document.getElementById('bulkDeleteBtn').addEventListener('click', function() {
 
 <script>
 
+// Double-click the file itself, excluding interactive controls and folder cards.
+document.querySelectorAll('.file-card-inner').forEach(card => {
+  card.addEventListener('dblclick', event => {
+    if (event.target.closest('a, button, input, label, select, textarea, .home-file-actions')) return;
+    openPreviewModal(Number(card.dataset.file));
+  });
+});
+
 // === 打開預覽視窗 ===
 function openPreviewModal(fileId) {
     // 將 preview.php 的連結指定到 iframe
     document.getElementById('previewFrame').src = 'preview.php?file_id=' + fileId;
     // 顯示 Bootstrap Modal
-    var myModal = new bootstrap.Modal(document.getElementById('previewModal'));
+    var myModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('previewModal'));
     myModal.show();
   }
 
 </script>
-<script src="assets/js/navbar_notifications.js?v=20261021-1"></script>
+<script src="assets/js/navbar_notifications.js?v=20261022-1"></script>
 <script src="assets/js/presence.js?v=20260928-2"></script>
-<script src="assets/js/message_notifications.js?v=20261021-1"></script>
+<script src="assets/js/message_notifications.js?v=20261021-5"></script>
+<?php require __DIR__ . '/partials/online_users.php'; ?>
+<script src="assets/js/storage_workspace.js?v=20261022-4"></script>
+<script src="assets/js/cloud_search.js?v=20261022-1"></script>
 </body>
 </html>

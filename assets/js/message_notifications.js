@@ -3,7 +3,11 @@
   const pollEveryMs = 3000;
   let audioContext = null;
   let initialized = false;
-  let pendingSound = false;
+  let preferenceVersion = 0;
+  window.addEventListener('notification-preferences-changed', () => { preferenceVersion++; });
+  window.addEventListener('storage', event => {
+    if (event.key === 'cloudchat:notification-preferences') preferenceVersion++;
+  });
 
   async function unlockAudio() {
     if (!audioContext) {
@@ -17,10 +21,6 @@
       } catch (_) {
         return;
       }
-    }
-    if (pendingSound && audioContext.state === 'running') {
-      pendingSound = false;
-      playMessageSound();
     }
   }
 
@@ -44,20 +44,21 @@
 
   async function checkNewMessages() {
     if (document.hidden && !initialized) return;
+    const version = preferenceVersion;
     try {
       const response = await fetch(`check_notifications.php?_=${Date.now()}`, {
         credentials: 'same-origin',
         cache: 'no-store'
       });
       const data = await response.json();
-      if (!data.success) return;
+      if (!data.success || version !== preferenceVersion) return;
 
       const notifications = data.notifications || [];
       const latestId = notifications.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0);
       const storageKey = `${storageKeyPrefix}:${Number(data.user_id) || 'unknown'}`;
       const storedId = Number(localStorage.getItem(storageKey) || 0);
 
-      if (!initialized && storedId === 0) {
+      if (!initialized) {
         localStorage.setItem(storageKey, String(latestId));
         initialized = true;
         return;
@@ -65,7 +66,7 @@
 
       initialized = true;
       const newMessageExists = notifications.some(item =>
-        item.type === 'message' && Number(item.id) > storedId && Number(item.is_read) === 0
+        (item.type === 'message' || item.type === 'file') && Number(item.sound_allowed) === 1 && Number(item.id) > storedId && Number(item.is_read) === 0
       );
 
       if (latestId > storedId) {
@@ -77,8 +78,7 @@
       if (newMessageExists && !isDnd) {
         if (audioContext && audioContext.state === 'running') {
           playMessageSound();
-        } else {
-          pendingSound = true;
+
         }
       }
     } catch (error) {

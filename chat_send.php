@@ -1,7 +1,7 @@
 <?php
 session_start();
-require 'config.php';
-require 'add_notification.php'; // 引入通知功能
+require_once __DIR__ . '/config.php';
+require __DIR__ . '/add_notification.php'; // 引入通知功能
 
 header('Content-Type: application/json');
 if (!isset($_SESSION['user_id'])) {
@@ -16,8 +16,8 @@ if (!isset($_POST['recipient_id']) || !isset($_POST['message'])) {
 
 $recipient_id = (int) $_POST['recipient_id'];
 $message = trim($_POST['message']);
-if ($message === '') {
-    echo json_encode(['success' => false, 'msg' => '訊息不能為空']);
+if ($message === '' || !mb_check_encoding($message, 'UTF-8') || mb_strlen($message, 'UTF-8') > 2000) {
+    echo json_encode(['success' => false, 'msg' => '訊息必須為 1 到 2000 個字']);
     exit;
 }
 
@@ -33,14 +33,21 @@ if ((int) $recipientStmt->fetchColumn() === 0) {
     exit;
 }
 
-$stmt = $pdo->prepare("INSERT INTO chat_messages (sender_id, recipient_id, message) VALUES (?, ?, ?)");
-if ($stmt->execute([$_SESSION['user_id'], $recipient_id, $message])) {
-    // 成功發送訊息後，新增通知
-    $notificationMessage = $_SESSION['username'] . " 傳送了一則訊息給你";
-    addNotification($_SESSION['user_id'], $recipient_id, 'message', $notificationMessage);
-    
-    echo json_encode(['success' => true]);
-} else {
-    echo json_encode(['success' => false, 'msg' => '訊息儲存失敗']);
+require_once __DIR__ . '/chat_features.php';
+ensureChatFeatures($pdo);
+try {
+    $pdo->beginTransaction();
+    $stmt = $pdo->prepare("INSERT INTO chat_messages (sender_id, recipient_id, message) VALUES (?, ?, ?)");
+    $stmt->execute([$_SESSION['user_id'], $recipient_id, $message]);
+    $messageId = (int)$pdo->lastInsertId();
+    if (!empty($_POST['reply_id'])) {
+        setPrivateReply($pdo, (int)$_SESSION['user_id'], $recipient_id, $messageId, (string)($_POST['reply_type'] ?? 'message'), (int)$_POST['reply_id']);
+    }
+    addNotification($_SESSION['user_id'], $recipient_id, 'message', $_SESSION['username'] . " 傳送了一則訊息給你");
+    $pdo->commit();
+    echo json_encode(['success' => true, 'message_id' => $messageId]);
+} catch (Throwable $error) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    http_response_code($error instanceof OutOfBoundsException ? 404 : 400);
+    echo json_encode(['success' => false, 'msg' => '傳送失敗，請確認回覆的訊息仍存在']);
 }
-?>

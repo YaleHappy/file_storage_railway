@@ -1,0 +1,13 @@
+RewriteEngine On
+# These limits must apply before PHP parses the multipart request.
+<IfModule php_module>
+    php_value upload_max_filesize 100M
+    php_value post_max_size 110M
+    php_flag display_errors Off
+</IfModule>
+# Files are served through PHP endpoints that check ownership or share tokens.
+RewriteRule ^uploads(?:/|$) - [F,L,NC]
+
+<FilesMatch "(?i)(^\.env|\.(sql|log)$|^debug_log\.txt$)">
+    Require all denied
+</FilesMatch>

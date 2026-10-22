@@ -1,6 +1,6 @@
 <?php
 session_start();
-require 'config.php';
+require_once __DIR__ . '/config.php';
 
 // 設定回應為 JSON 格式
 header('Content-Type: application/json');
@@ -33,28 +33,27 @@ $stmt_select = $pdo->prepare("SELECT stored_filename FROM files WHERE file_id = 
 // 準備刪除資料庫中的資料列
 $stmt_delete = $pdo->prepare("DELETE FROM files WHERE file_id = ? AND user_id = ?");
 
+require_once __DIR__ . '/file_cleanup.php';
 foreach ($ids as $id) {
-    if (is_numeric($id)) {
-        // 取得檔案資訊
-        $stmt_select->execute([$id, $user_id]);
-        $file = $stmt_select->fetch(PDO::FETCH_ASSOC);
-        if ($file) {
-            // 組合實體檔案路徑（假設檔案存放在 uploads 資料夾下）
-            $filePath = __DIR__ . '/uploads/' . $file['stored_filename'];
-            // 如果檔案存在，則刪除
-            if (file_exists($filePath)) {
-                if (!unlink($filePath)) {
-                    // 若無法刪除實體檔案，記錄錯誤並跳過此筆
-                    error_log("無法刪除檔案：$filePath");
-                    continue;
-                }
-            }
-            // 刪除資料庫中的資料列
-            $stmt_delete->execute([$id, $user_id]);
-            if ($stmt_delete->rowCount() > 0) {
-                $deletedCount++;
-            }
+    if (!ctype_digit((string)$id) || (int)$id <= 0) continue;
+    $stmt_select->execute([$id, $user_id]);
+    $file = $stmt_select->fetch(PDO::FETCH_ASSOC);
+    if (!$file || basename($file['stored_filename']) !== $file['stored_filename']) continue;
+    $filePath = __DIR__ . '/uploads/' . $file['stored_filename'];
+    try {
+        $pdo->beginTransaction();
+        foreach (['file_shares','preview_tokens'] as $table) {
+            if (cleanupTableExists($pdo,$table)) $pdo->prepare("DELETE FROM $table WHERE file_id = ?")->execute([$id]);
         }
+        $stmt_delete->execute([$id,$user_id]);
+        $count = $stmt_delete->rowCount();
+        $pdo->commit();
+        $deletedCount += $count;
+        // A database failure must never leave a listed record pointing at a deleted file.
+        if ($count && is_file($filePath) && !@unlink($filePath)) error_log('已移除檔案紀錄，但實體副本未能清除');
+    } catch (Throwable $error) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        error_log('刪除檔案失敗：' . $error->getMessage());
     }
 }
 

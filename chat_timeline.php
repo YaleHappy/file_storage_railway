@@ -1,6 +1,6 @@
 <?php
 session_start();
-require 'config.php';
+require_once __DIR__ . '/config.php';
 header('Content-Type: application/json; charset=utf-8');
 
 if (!isset($_SESSION['user_id'])) {
@@ -9,6 +9,8 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $currentUserId = (int) $_SESSION['user_id'];
+require_once __DIR__ . '/file_cleanup.php';
+cleanupMissingSharedFiles($pdo, $currentUserId);
 $recipientId = isset($_GET['recipient_id']) ? (int) $_GET['recipient_id'] : 0;
 if ($recipientId <= 0 || $recipientId === $currentUserId) {
     echo json_encode(['success' => false, 'msg' => '無效的聊天對象']);
@@ -39,7 +41,9 @@ $stmt->execute([
     $currentUserId, $recipientId, $recipientId, $currentUserId,
 ]);
 
+require_once __DIR__ . '/chat_features.php';
+ensureChatFeatures($pdo);
 echo json_encode([
     'success' => true,
-    'events' => $stmt->fetchAll(PDO::FETCH_ASSOC),
+    'events' => enrichPrivateChat($pdo, $stmt->fetchAll(PDO::FETCH_ASSOC)),
 ]);

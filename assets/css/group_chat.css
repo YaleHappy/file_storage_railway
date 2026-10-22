@@ -10,6 +10,8 @@ body.group-page { background: #191b30; color: #f4f5ff; }
 .group-list-item small { display: block; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; color: #bec2da; }
 .group-room { display: flex; flex-direction: column; min-width: 0; height: calc(100dvh - 11rem); min-height: 420px; }
 .group-room[hidden], [hidden] { display: none !important; }
+.history-shell .group-room { height: calc(100dvh - 13rem); min-height: 360px; }
+.history-shell #groupEmpty { min-width: 0; }
 .group-room-header { display: flex; align-items: center; gap: .5rem; padding: .8rem; border-bottom: 1px solid #42466b; flex-shrink: 0; }
 .group-room-header h2 { font-size: 1.1rem; margin: 0; overflow-wrap: anywhere; }
 .group-room-header small { color: #bec2da; }
@@ -21,19 +23,23 @@ body.group-page { background: #191b30; color: #f4f5ff; }
 .group-message.sent { align-items: flex-end; }
 .group-bubble { max-width: 85%; min-width: 100px; border-radius: 12px; padding: .65rem .8rem; background: #343768; overflow-wrap: anywhere; -webkit-touch-callout: none; }
 .group-message.sent .group-bubble { background: #1260c2; }
-.group-message-author { font-size: .78rem; color: #c6e2ff; margin-bottom: .2rem; }
+.group-message-heading { display: flex; align-items: baseline; gap: .65rem; flex-wrap: wrap; margin-bottom: .35rem; }
+.group-message-author { font-size: .95rem; font-weight: 600; color: #e2f1ff; }
 .group-message-content { white-space: pre-wrap; }
-.group-message-meta { display: flex; align-items: center; justify-content: flex-end; gap: .5rem; color: #d1d5e9; font-size: .7rem; margin-top: .35rem; }
-.group-message-more { background: transparent; border: 0; color: #fff; min-width: 32px; min-height: 32px; font-size: 1rem; }
+.group-message-meta { color: #d1d5e9; font-size: .85rem; }
 .group-quote { border-left: 3px solid #9dcdff; background: #0002; padding: .4rem; margin-bottom: .5rem; font-size: .8rem; }
 .group-reactions { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .4rem; }
-.group-reactions button { border: 1px solid #a2b0d9; background: #0002; color: #fff; border-radius: 16px; font-size: .8rem; padding: .2rem .5rem; }
-.group-reactions button.mine { border-color: #ffc107; }
+.group-reactions button { border: 1px solid transparent; background: #30334c; color: #fff; border-radius: 8px; font-size: .9rem; padding: .25rem .55rem; min-height: 32px; }
+.group-reactions button.mine { border-color: #7caaff; background: #334f79; }
+.group-reactions button:hover, .group-reactions button:focus-visible { background: #454b70; }
+.group-reactions .group-add-reaction { font-size: 1.1rem; line-height: 1; color: #cbd0e5; }
 .group-file-actions { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: .5rem; }
 .group-reply-preview { padding: .5rem .8rem; display: flex; justify-content: space-between; gap: .5rem; background: #303559; font-size: .85rem; }
 .group-reply-preview span { min-width: 0; overflow-wrap: anywhere; }
 .group-composer { padding: .75rem; border-top: 1px solid #42466b; flex-shrink: 0; }
 .group-input-row { display: flex; gap: .5rem; align-items: flex-end; }
+.group-input-row > .btn { flex: 0 0 auto; min-height: 44px; white-space: nowrap; }
+.group-input-row > textarea { min-width: 0; }
 .group-input-row textarea { resize: none; max-height: 100px; }
 .group-mentions { margin-bottom: .4rem; font-size: .85rem; }
 .group-mentions > div { display: flex; flex-wrap: wrap; gap: .6rem; max-height: 90px; overflow: auto; padding: .5rem; }
@@ -44,14 +50,28 @@ body.group-page { background: #191b30; color: #f4f5ff; }
 .group-dialog-actions { display: flex; justify-content: flex-end; gap: .5rem; margin-top: 1rem; flex-wrap: wrap; }
 .group-checklist { max-height: 240px; overflow: auto; padding: .5rem 0; }
 .group-checklist label { display: block; padding: .35rem; }
-.group-action-buttons { display: flex; flex-wrap: wrap; gap: .5rem; }
-.group-message-summary { white-space: pre-wrap; max-height: 120px; overflow: auto; overflow-wrap: anywhere; }
+.group-action-buttons { display: block; }
+#messageDialog { position: fixed; z-index: 2000; width: min(260px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto; padding: .4rem; border: 1px solid #565a87; border-radius: 12px; background: #25274d; color: #fff; box-shadow: 0 12px 32px #0008; }
+#messageDialog h2 { font-size: 1rem; }
+.group-message-summary { white-space: pre-wrap; max-height: 100px; overflow: auto; overflow-wrap: anywhere; padding: .75rem; border-radius: 8px; background: #191b30; color: #d0d5eb; font-size: .9rem; line-height: 1.5; }
+.group-action-grid { display: flex; flex-direction: column; gap: 0; }
+.group-action-grid .btn { min-height: 44px; padding: .65rem; border: 0; border-radius: 6px; background: transparent; font-size: .9rem; text-align: left; }
+.group-action-grid .btn:hover { background: #424b76; color: #fff; }
+.group-reaction-label { margin: 1rem 0 .5rem; color: #b9c1df; font-size: .8rem; }
+.group-reaction-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .4rem; }
+.group-reaction-option { min-height: 44px; border: 0; border-radius: 9px; background: #313659; font-size: 1.3rem; }
+.group-reaction-option:hover, .group-reaction-option:focus-visible { background: #48537d; outline: 2px solid #9dcdff; }
+.group-recall-button { width: 100%; min-height: 44px; margin-top: .35rem; border: 0; border-top: 1px solid #565a87; border-radius: 0; text-align: left; padding: .65rem; }
+#messageDialog .group-dialog-actions { margin: 0; border-top: 1px solid #565a87; }
+#messageDialog .group-dialog-actions button { width: 100%; text-align: left; border: 0; background: transparent; padding: .65rem; }
 .group-member-row, .group-file-row { display: flex; align-items: center; gap: .5rem; justify-content: space-between; padding: .7rem 0; border-bottom: 1px solid #42466b; overflow-wrap: anywhere; }
 .group-file-row { align-items: flex-start; flex-direction: column; }
 .group-page .form-control, .group-page .form-select { background-color: #191b30; color: #fff; border-color: #60668c; }
 .group-page .form-control::placeholder { color: #b6bad1; }
+@media (pointer: coarse) { .group-bubble { user-select: none; -webkit-user-select: none; } }
 @media (max-width: 991.98px) { .group-main { padding-top: .5rem; } }
 @media (max-width: 767.98px) {
+  .history-shell.conversation-open .group-room { height: 100%; min-height: 0; }
   .group-main { padding-right: .5rem; padding-left: .5rem; }
   .group-shell { display: block; }
   .group-sidebar { max-height: none; border: 0; }
@@ -60,6 +80,25 @@ body.group-page { background: #191b30; color: #f4f5ff; }
   .group-room { height: calc(100dvh - 6rem - var(--mobile-nav-height)); min-height: 240px; }
   .group-back { display: inline-block; }
   .group-bubble { max-width: 94%; }
-  .group-room-header { flex-wrap: wrap; }
-  .group-room-header > .flex-grow-1 { flex-basis: 40%; }
+  .group-room-header { flex-wrap: nowrap; }
+  .group-room-header > .flex-grow-1 { flex-basis: 0; min-width: 0; }
+  .group-room-header > .btn { flex: 0 0 auto; min-width: 40px; }
+  .group-control-label { display: none; }
 }
+
+.group-message-read { border: 0; background: transparent; color: #d1d5e9; font-size: .85rem; margin-top: .25rem; padding: .15rem .2rem; }
+.group-composer { position: relative; }
+.mention-suggestions { position: absolute; z-index: 20; bottom: 100%; left: .75rem; right: .75rem; max-height: 220px; overflow: auto; background: #25274d; border: 1px solid #565a87; border-radius: 10px; box-shadow: 0 -4px 20px #0005; padding: .35rem; }
+.mention-option { display: block; width: 100%; text-align: left; border: 0; background: transparent; color: #fff; padding: .65rem; border-radius: 6px; }
+.mention-option:hover, .mention-option[aria-selected="true"] { background: #3b4775; }
+
+#fileDialog .form-control, #fileDialog .form-select { background-color: #191b30; color: #fff; border-color: #60668c; color-scheme: dark; }
+#fileDialog .form-control::file-selector-button { background-color: #303559; color: #fff; border-color: #60668c; }
+#fileDialog .form-select option { background: #191b30; color: #fff; }
+.group-composer { background: #25274d; }
+
+#toolsDialog .d-flex > .form-select { flex: 1 1 0; width: 0; min-width: 0; }
+#toolsDialog .d-flex > .btn { flex: 0 0 auto; white-space: nowrap; min-width: 64px; }
+.group-file-actions { gap:10px; margin:12px 0 6px; }
+.group-file-actions > .btn { white-space:nowrap; border-radius:8px; padding:7px 12px; background:#303b5b; border:1px solid #a0afd0; color:#eff3ff; }
+.group-status-notice { flex-shrink:0; padding:.6rem .8rem; border-bottom:1px solid #736041; background:#40382b; color:#f3d9a4; font-size:.85rem; line-height:1.5; }

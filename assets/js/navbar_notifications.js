@@ -1,9 +1,10 @@
 (() => {
 const notificationBadge = document.querySelector('.notification-badge');
 const notificationCount = document.querySelector('.notification-count');
-const notificationsContainer = document.querySelector('.notifications-container');
+const notificationPage = document.querySelector('[data-notifications-page]');
+const notificationsContainer = notificationPage?.querySelector('.notifications-container') || document.querySelector('.notifications-container');
 const notificationDropdown = document.getElementById('notificationDropdown');
-const clearAllNotifications = document.getElementById('clearAllNotifications');
+const clearAllNotifications = notificationPage?.querySelector('[data-mark-all]') || document.getElementById('clearAllNotifications');
 let deletionPending = false;
 let notificationVersion = 0;
 
@@ -94,7 +95,7 @@ function renderNotifications(notifications) {
     item.appendChild(row);
 
     const openNotification = () => {
-      const target = notification.group_id ? `group_chat.php?group=${Number(notification.group_id)}` : notification.type === 'message'
+      const target = notification.group_id ? `chat_history.php?group=${Number(notification.group_id)}` : notification.type === 'message'
         ? `chat_history.php?user=${Number(notification.sender_id)}`
         : (notification.type === 'file' ? 'received_files.php' : '');
       if (target) window.location.href = target;
@@ -147,7 +148,7 @@ async function loadNotifications() {
   if (deletionPending) return;
   const version = notificationVersion;
   try {
-    const response = await fetch(`check_notifications.php?_=${Date.now()}`, { cache: 'no-store' });
+    const response = await fetch(`check_notifications.php?_=${Date.now()}${notificationPage ? '&page_view=1' : ''}`, { cache: 'no-store' });
     const data = await response.json();
     if (data.success && !deletionPending && version === notificationVersion) {
       updateNotificationBadge(Number(data.total_unread));
