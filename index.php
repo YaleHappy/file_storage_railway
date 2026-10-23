@@ -162,53 +162,7 @@ html, body {
   margin-bottom: 20px;
 }
 /* 右鍵選單 */
-.context-menu {
-  position: absolute;
-  display: none;
-  background: #333;
-  color: #fff;
-  border-radius: 5px;
-  z-index: 2000;
-  box-shadow: 0px 0px 10px rgba(0,0,0,0.3);
-  padding: 5px 0;
-  width: 180px;
-}
-.context-menu ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.context-menu ul li {
-  padding: 8px 15px;
-  cursor: pointer;
-}
-.context-menu ul li:hover {
-  background: #555;
-}
-/* 背景右鍵選單 */
-.bg-context-menu {
-  position: absolute;
-  display: none;
-  background: #333;
-  color: #fff;
-  border-radius: 5px;
-  z-index: 3000;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-  padding: 5px 0;
-  width: 180px;
-}
-.bg-context-menu ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.bg-context-menu ul li {
-  padding: 8px 15px;
-  cursor: pointer;
-}
-.bg-context-menu ul li:hover {
-  background: #555;
-}
+
 .modal {
   z-index: 1050;
 }
@@ -337,8 +291,9 @@ html, body {
   <link href="assets/css/home_announcements.css?v=20261022-6" rel="stylesheet">
 <link href="assets/css/share_theme.css?v=20261022-1" rel="stylesheet">
 <link href="assets/css/preview_theme.css?v=20261022-2" rel="stylesheet">
-<link href="assets/css/storage_workspace.css?v=20261022-3" rel="stylesheet">
+<link href="assets/css/storage_workspace.css?v=20261024-1" rel="stylesheet">
 <link href="assets/css/cloud_search.css?v=20261022-1" rel="stylesheet">
+<link href="assets/css/file_context_menu.css?v=20261024-1" rel="stylesheet">
 </head>
 <body class="has-fixed-navbar home-page">
 
@@ -544,7 +499,7 @@ html, body {
               <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#shareModal" data-id="<?= (int)$f['file_id'] ?>" title="產生分享連結"><i class="bi bi-share-fill" aria-hidden="true"></i> 分享</button>
               <button type="button" class="btn btn-info btn-sm move-btn" data-id="<?= (int)$f['file_id'] ?>" title="移動到資料夾"><i class="bi bi-arrow-right-square" aria-hidden="true"></i> 移動</button>
               <button type="button" class="btn btn-primary btn-sm" onclick="openPreviewModal(<?= (int)$f['file_id'] ?>)" title="預覽檔案"><i class="bi bi-eye" aria-hidden="true"></i> 預覽</button>
-              <a href="files.php?delete=<?= (int)$f['file_id'] ?>" onclick="return confirm('確定刪除此檔案？');" class="btn btn-danger btn-sm" title="刪除檔案"><i class="bi bi-trash" aria-hidden="true"></i> 刪除</a>
+              <a href="files.php?delete=<?= (int)$f['file_id'] ?>" data-delete-file="<?= (int)$f['file_id'] ?>" class="btn btn-danger btn-sm" title="刪除檔案"><i class="bi bi-trash" aria-hidden="true"></i> 刪除</a>
             </div>
           </div>
         </div>
@@ -553,20 +508,6 @@ html, body {
   </div>
 </div>
 
-
-<!-- 背景右鍵選單 -->
-<div id="bgContextMenu" class="bg-context-menu">
-  <ul>
-    <li onclick="openCreateFolderModal()">📂 新建資料夾</li>
-    <li onclick="openUploadModal()">📤 上傳檔案</li>
-    <li onclick="location.reload()">🔄 刷新頁面</li>
-  </ul>
-</div>
-
-<!-- 右鍵選單 (針對檔案/資料夾) -->
-<div id="contextMenu" class="context-menu">
-  <ul id="contextMenuList"></ul>
-</div>
 
 <!-- Modal 區塊 -->
 <!-- 建立資料夾 Modal -->
@@ -824,77 +765,6 @@ function goIntoFolder(folderId) {
   location.href = '?folder=' + folderId;
 }
 
-// === 右鍵選單功能 (針對檔案與資料夾) ===
-const contextMenu = document.getElementById("contextMenu");
-const contextMenuList = document.getElementById("contextMenuList");
-let currentTarget = null;
-function getContextMenuOptions(target) {
-  if(target.classList.contains("folder-card")) {
-    const folderId = target.dataset.folder;
-    const folderName = target.dataset.folderName;
-    return `
-      <li onclick="window.location.href='?folder=${folderId}'">🔍 開啟資料夾</li>
-      <li onclick="renameFolder('${folderId}', currentTarget.dataset.folderName)">✏️ 重新命名資料夾</li>
-      <li onclick="deleteFolder('${folderId}')">❌ 刪除資料夾</li>
-    `;
-  } else if(target.classList.contains("file-card-inner")) {
-    const fileId = target.dataset.file;
-    return `
-      <li onclick="window.location.href='files.php?download=${fileId}'">⬇️ 下載檔案</li>
-      <li onclick="deleteFile('${fileId}')">❌ 刪除檔案</li>
-      <li onclick="openMoveModal('${fileId}')">📂➡️ 移動檔案</li>
-      <li onclick="openShareModal('${fileId}')">🔗 分享檔案</li>
-    `;
-  }
-  return "";
-}
-document.addEventListener("contextmenu", function(e) {
-  const folderElem = e.target.closest(".folder-card");
-  const fileElem = e.target.closest(".file-card-inner");
-  if(folderElem || fileElem) {
-    e.preventDefault();
-    currentTarget = folderElem || fileElem;
-    contextMenuList.innerHTML = getContextMenuOptions(currentTarget);
-    contextMenu.style.top = `${e.clientY}px`;
-    contextMenu.style.left = `${e.clientX}px`;
-    contextMenu.style.display = "block";
-  } else {
-    contextMenu.style.display = "none";
-  }
-});
-document.addEventListener("click", function() {
-  contextMenu.style.display = "none";
-});
-
-// === 背景右鍵選單功能 ===
-const bgContextMenu = document.getElementById("bgContextMenu");
-document.body.addEventListener("contextmenu", function(e) {
-  // 如果點擊目標在任何 modal 內或在下拉選單內，不顯示背景選單
-  if (e.target.closest('.modal') || e.target.closest('.dropdown-menu')) {
-    return;
-  }
-
-  // 如果不是在檔案、資料夾或右鍵選單內，顯示背景選單
-  if (
-    !e.target.closest(".file-card") &&
-    !e.target.closest(".folder-card") &&
-    !e.target.closest(".context-menu")
-  ) {
-    e.preventDefault();
-    bgContextMenu.style.top = `${e.clientY}px`;
-    bgContextMenu.style.left = `${e.clientX}px`;
-    bgContextMenu.style.display = "block";
-  } else {
-    bgContextMenu.style.display = "none";
-  }
-});
-
-
-
-
-document.addEventListener("click", function() {
-  bgContextMenu.style.display = "none";
-});
 function openUploadModal() {
   const uploadModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('uploadModal'));
   uploadModal.show();
@@ -910,27 +780,8 @@ function renameFolder(folderId, folderName) {
   document.getElementById('renameFolderName').value = folderName;
   bootstrap.Modal.getOrCreateInstance(document.getElementById('renameFolderModal')).show();
 }
-function deleteFolder(folderId) {
-  if(confirm("確定刪除此資料夾？僅能刪除空資料夾，內有檔案或子資料夾時會保留。")) {
-    const fd = new FormData();
-    fd.append('folder_id', folderId);
-    fetch('folders.php?action=delete', { method:'POST', body: fd })
-      .then(r => r.json())
-      .then(js => {
-        if(js.success) {
-          alert("資料夾已刪除");
-          location.reload();
-        } else {
-          alert(js.msg || "刪除失敗");
-        }
-      });
-  }
-}
-function deleteFile(fileId) {
-  if(confirm("確定要刪除此檔案嗎？")) {
-    window.location.href = "files.php?delete=" + fileId;
-  }
-}
+function deleteFolder(id) { window.storageDelete('folder', [id]); }
+function deleteFile(id) { window.storageDelete('file', [id]); }
 function openMoveModal(fileId) {
   document.getElementById('moveFileId').value = fileId;
   document.getElementById('moveResult').classList.add('d-none');
@@ -1106,23 +957,6 @@ document.getElementById('renameFolderForm').onsubmit = async e => {
     renameRes.classList.remove('d-none');
   }
 };
-// 刪除資料夾 (按鈕與右鍵皆適用)
-document.querySelectorAll('.delete-folder-btn').forEach(btn => {
-  btn.addEventListener('click', async () => {
-    if (!confirm('確定刪除此空資料夾？內有檔案或子資料夾時不會刪除。')) return;
-    const folderId = btn.dataset.id;
-    const fd = new FormData();
-    fd.append('folder_id', folderId);
-    const r  = await fetch('folders.php?action=delete', { method:'POST', body: fd });
-    const js = await r.json();
-    if (js.success) {
-      alert('資料夾已刪除');
-      location.reload();
-    } else {
-      alert(js.msg || '刪除失敗');
-    }
-  });
-});
   const multiFileInput = document.getElementById('multiFileInput');
   const fileListDiv = document.getElementById('fileList');
 
@@ -1355,48 +1189,6 @@ function checkInactiveUsers() {
 
 
 
-document.getElementById('bulkDeleteBtn').addEventListener('click', function() {
-  console.log("Bulk delete clicked");
-  // 收集所有已選取的勾選框
-  let selectedItems = document.querySelectorAll('.file-card-inner .select-item:checked');
-  let ids = [];
-  selectedItems.forEach(item => {
-     ids.push(item.value);
-  });
-  console.log("Selected IDs:", ids);
-  
-  if (ids.length === 0) {
-     alert('請先選取要刪除的項目');
-     return;
-  }
-  
-  if (confirm('確定要刪除所選項目嗎？')) {
-     fetch('bulk_delete.php', {
-       method: 'POST',
-       headers: { 'Content-Type': 'application/json' },
-       body: JSON.stringify({ ids: ids })
-     })
-     .then(res => {
-       console.log("Response received", res);
-       return res.json();
-     })
-     .then(data => {
-       console.log("Response data:", data);
-       if(data.success) {
-          alert('刪除成功');
-          location.reload();
-       } else {
-          alert(data.msg || '刪除失敗');
-       }
-     })
-     .catch(err => {
-       console.error("Fetch error:", err);
-     });
-  }
-});
-
-
-
 </script>
 
 
@@ -1424,7 +1216,9 @@ function openPreviewModal(fileId) {
 <script src="assets/js/presence.js?v=20260928-2"></script>
 <script src="assets/js/message_notifications.js?v=20261021-5"></script>
 <?php require __DIR__ . '/partials/online_users.php'; ?>
-<script src="assets/js/storage_workspace.js?v=20261022-4"></script>
+<script src="assets/js/storage_workspace.js?v=20261024-1"></script>
+<script src="assets/js/storage_delete.js?v=20261024-1"></script>
 <script src="assets/js/cloud_search.js?v=20261022-1"></script>
+<script src="assets/js/file_context_menu.js?v=20261024-2"></script>
 </body>
 </html>

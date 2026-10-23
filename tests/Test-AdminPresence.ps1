@@ -11,6 +11,17 @@ try{
  $two=Action-Presence 'addUser' @{username=$prefix+'two';password=$secret;role='user'};$ids+=[int]$two.id
  $session=Login-Presence ($prefix+'one') $secret
  $other=Login-Presence ($prefix+'two') $secret
+ $null=Invoke-WebRequest ($base+'logout.php') -WebSession $other
+ foreach($attempt in 1..3){
+  $initial=Invoke-RestMethod ($base+'admin.php?section=users&format=json') -WebSession $admin
+  $loggedOut=$initial.data.items|Where-Object id -eq $ids[1]
+  Check-Presence ($loggedOut.status -eq 'offline') 'Initial admin load keeps recently logged-out account offline'
+  $poll=Invoke-RestMethod ($base+'admin.php?presence=1') -WebSession $admin
+  Check-Presence (($poll.users|Where-Object id -eq $ids[1]).html -like '*離線*') 'Polling does not revive logged-out account'
+ }
+ $other=Login-Presence ($prefix+'two') $secret
+ $poll=Invoke-RestMethod ($base+'admin.php?presence=1') -WebSession $admin
+ Check-Presence (($poll.users|Where-Object id -eq $ids[1]).html -like '*status-online*') 'Signing in again restores online'
  foreach($id in $ids){& C:\xampp\php\php.exe (Join-Path $PSScriptRoot 'age_presence_fixture.php') $id;if($LASTEXITCODE){throw 'Aging fixture failed'}}
  $snapshot=Invoke-RestMethod ($base+'admin.php?presence=1') -WebSession $admin
  foreach($id in $ids){$row=$snapshot.users|Where-Object id -eq $id;Check-Presence ($row.html -like '*離線*') 'Stale account becomes offline without public user_status endpoint'}

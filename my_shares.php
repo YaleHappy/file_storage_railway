@@ -158,6 +158,7 @@ if (!isset($_SESSION['status']) && isset($_SESSION['user_id'])) {
   <link href="assets/css/responsive.css?v=20261022-2" rel="stylesheet">
 <link href="assets/css/file_lists.css?v=20261022-2" rel="stylesheet">
 <link href="assets/css/preview_theme.css?v=20261022-2" rel="stylesheet">
+<link href="assets/css/file_context_menu.css?v=20261024-1" rel="stylesheet">
 </head>
 <body class="has-fixed-navbar file-page">
 
@@ -285,5 +286,6 @@ settingsForm.addEventListener('submit',async e=>{
 <script src="assets/js/message_notifications.js?v=20261021-5"></script>
 <script src="assets/js/navbar_notifications.js?v=20261022-1"></script>
 <?php require __DIR__ . '/partials/online_users.php'; ?>
+<script src="assets/js/file_context_menu.js?v=20261024-2"></script>
 </body>
 </html>

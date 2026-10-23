@@ -63,3 +63,12 @@
 
 .storage-heading .storage-breadcrumb { font-size:1.4rem; font-weight:600; line-height:1.5; margin-bottom:10px; }
 @media(max-width:767.98px) { .storage-heading .storage-breadcrumb { font-size:1.2rem; } }
+
+.storage-delete-dialog { width:min(440px,calc(100% - 32px)); padding:24px; border:1px solid #657393; border-radius:14px; background:#252b45; color:#edf2ff; }
+.storage-delete-dialog::backdrop { background:rgb(8 12 25 / 65%); }
+.storage-delete-dialog h2 { font-size:1.2rem; margin:0 0 16px; }
+.storage-delete-dialog p { line-height:1.7; }
+.storage-delete-dialog form > div { display:flex; justify-content:flex-end; gap:12px; margin-top:22px; }
+.storage-delete-dialog .btn { min-height:44px; min-width:76px; }
+.storage-delete-feedback { color:#c3ebd8; background:#243f3b; border:1px solid #52796b; border-radius:9px; padding:12px 16px; margin:14px 0; }
+.storage-delete-feedback.is-error { color:#ffd0db; background:#483244; border-color:#8d5b70; }

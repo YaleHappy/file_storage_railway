@@ -8,6 +8,7 @@ function refreshPresenceStatuses(PDO $pdo): void
     $stmt = $pdo->prepare("
         UPDATE users
         SET status = CASE
+            WHEN status = 'offline' THEN 'offline'
             WHEN last_active IS NULL
               OR TIMESTAMPDIFF(SECOND, last_active, NOW()) >= :offline_seconds
                 THEN 'offline'
@@ -18,7 +19,8 @@ function refreshPresenceStatuses(PDO $pdo): void
               OR TIMESTAMPDIFF(SECOND, last_interaction, NOW()) >= :idle_seconds
                 THEN 'idle'
             ELSE 'online'
-        END
+        END,
+        last_active = last_active
     ");
     $stmt->execute([
         ':offline_seconds' => PRESENCE_OFFLINE_SECONDS,
