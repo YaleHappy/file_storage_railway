@@ -80,7 +80,7 @@ $files = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
   </style>
   <link href="assets/css/responsive.css?v=20261022-2" rel="stylesheet">
-<link href="assets/css/file_lists.css?v=20261024-1" rel="stylesheet">
+<link href="assets/css/file_lists.css?v=20261024-2" rel="stylesheet">
 <link href="assets/css/preview_theme.css?v=20261022-2" rel="stylesheet">
 <link href="assets/css/file_context_menu.css?v=20261024-1" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/ui_feedback.css?v=20261024-1"><script src="assets/js/ui_feedback.js?v=20261024-1"></script></head>
