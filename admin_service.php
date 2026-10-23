@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__.'/file_cleanup.php';
+require_once __DIR__.'/user_activity.php';
 require_once __DIR__.'/account_access.php';
 require_once __DIR__.'/group_service.php';
 function adminQuery(PDO $pdo,string $sql,array $params=[]): PDOStatement { $s=$pdo->prepare($sql);$s->execute($params);return $s; }
@@ -11,6 +12,7 @@ function ensureAdminSchema(PDO $pdo): void
     $id=$mysql?'BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY':'INTEGER PRIMARY KEY AUTOINCREMENT';
     $pdo->exec("CREATE TABLE IF NOT EXISTS admin_audit_log (id $id, actor_id INTEGER NOT NULL, actor_name VARCHAR(100) NOT NULL, action VARCHAR(40) NOT NULL, target_id BIGINT NOT NULL, detail VARCHAR(500) NOT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)".$suffix);
     ensureGroupSchema($pdo);
+    ensureUserActivitySchema($pdo);
 }
 function requireStorageAdmin(PDO $pdo,int $actor): array
 {

@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/user_activity.php';
 
 header('Content-Type: application/json');
 error_reporting(E_ALL);
@@ -64,7 +65,9 @@ try {
     if (!copy($sourceFullPath, $destFullPath)) throw new RuntimeException('無法複製檔案');
     $stmtInsert = $pdo->prepare("INSERT INTO files (user_id, folder_id, original_filename, stored_filename, file_size, created_at) VALUES (?, 0, ?, ?, ?, NOW())");
     $stmtInsert->execute([$recipientId, $originalFilename, $newFilename, filesize($destFullPath)]);
+    $savedId=(int)$pdo->lastInsertId();
     $pdo->commit();
+    recordUserActivity($pdo,'儲存到雲端',$savedId,'檔名：'.$originalFilename);
     echo json_encode(['success' => true]);
 } catch (Throwable $error) {
     if ($pdo->inTransaction()) $pdo->rollBack();

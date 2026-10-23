@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/user_activity.php';
 
 // 確保沒有其他輸出
 ob_start();
@@ -132,6 +133,7 @@ for ($i = 0; $i < $totalFiles; $i++) {
     ]);
 
     if ($result) {
+        recordUserActivity($pdo,'上傳檔案',(int)$pdo->lastInsertId(),'檔名：'.$originalName.'；資料夾編號：'.(int)($_POST['folder_id']??0));
         $successCount++;
     } else {
         @unlink($targetPath);

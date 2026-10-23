@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/user_activity.php';
 header('Content-Type: application/json');
 
 ini_set('display_errors', '0');
@@ -103,6 +104,7 @@ try {
     }
 
     $pdo->commit();
+    recordUserActivity($pdo,'建立分享連結',$file_id,'檔案編號：'.$file_id.'；到期：'.$expires);
     // 9️⃣ 生成分享連結（✅自動依環境）
     $link = buildShareLink($token);
 

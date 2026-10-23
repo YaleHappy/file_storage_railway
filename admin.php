@@ -22,7 +22,7 @@ if(($_GET['presence']??'')==='1'){
 }
 $_SESSION['is_admin']=1;$_SESSION['role']='admin';
 $_SESSION['admin_csrf']??=bin2hex(random_bytes(32));
-$sections=['dashboard'=>'總覽','users'=>'使用者','storage'=>'檔案管理','folders'=>'資料夾','files'=>'檔案','user_files'=>'使用者檔案','groups'=>'群組','notifications'=>'通知紀錄','chats'=>'私訊紀錄','announcements'=>'公告','logs'=>'操作紀錄'];
+$sections=['dashboard'=>'總覽','users'=>'使用者','storage'=>'檔案管理','folders'=>'資料夾','files'=>'檔案','user_files'=>'使用者檔案','groups'=>'群組','notifications'=>'通知紀錄','chats'=>'私訊紀錄','announcements'=>'公告','logs'=>'管理員操作紀錄','activity'=>'使用者活動紀錄'];
 $section=(string)($_GET['section']??'dashboard');if(!isset($sections[$section]))$section='dashboard';
 $q=mb_substr(trim((string)($_GET['q']??'')),0,200);$page=max(1,(int)($_GET['page']??1));$uid=max(0,(int)($_GET['uid']??0));
 $folder=isset($_GET['folder'])?max(0,(int)$_GET['folder']):null;

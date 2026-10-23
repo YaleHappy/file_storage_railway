@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/user_activity.php';
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['user_id'])) {
@@ -29,6 +30,7 @@ $stmt = $pdo->prepare("
 $ok = $stmt->execute([$targetFld, $file_id, $_SESSION['user_id']]);
 
 if ($ok) {
+    recordUserActivity($pdo,'移動檔案',$file_id,'目標資料夾編號：'.$targetFld);
     echo json_encode(['success'=>true]);
 } else {
     echo json_encode(['success'=>false, 'msg'=>'移動失敗']);

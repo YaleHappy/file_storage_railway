@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/user_activity.php';
 
 // 設定回應為 JSON 格式
 header('Content-Type: application/json');
@@ -29,7 +30,7 @@ $user_id = $_SESSION['user_id'];
 $deletedCount = 0;
 
 // 準備查詢該筆檔案的資訊，使用資料表中的 stored_filename 欄位
-$stmt_select = $pdo->prepare("SELECT stored_filename FROM files WHERE file_id = ? AND user_id = ?");
+$stmt_select = $pdo->prepare("SELECT stored_filename, original_filename FROM files WHERE file_id = ? AND user_id = ?");
 // 準備刪除資料庫中的資料列
 $stmt_delete = $pdo->prepare("DELETE FROM files WHERE file_id = ? AND user_id = ?");
 
@@ -49,6 +50,7 @@ foreach ($ids as $id) {
         $count = $stmt_delete->rowCount();
         $pdo->commit();
         $deletedCount += $count;
+        if($count) recordUserActivity($pdo,'刪除檔案',(int)$id,'檔名：'.$file['original_filename']);
         // A database failure must never leave a listed record pointing at a deleted file.
         if ($count && is_file($filePath) && !@unlink($filePath)) error_log('已移除檔案紀錄，但實體副本未能清除');
     } catch (Throwable $error) {

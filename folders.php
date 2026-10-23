@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/user_activity.php';
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['user_id'])) {
@@ -38,6 +39,7 @@ if ($action === 'create') {
         VALUES(?, ?, ?)
     ");
     $ok = $stmt->execute([$_SESSION['user_id'], $parent, $name]);
+    if($ok) recordUserActivity($pdo,$action==='create'?'新增資料夾':'重新命名資料夾',$action==='create'?(int)$pdo->lastInsertId():$fid,'名稱：'.$name.'；上層資料夾編號：'.$parent);
     echo json_encode(['success' => $ok]);
 }
 
@@ -79,6 +81,7 @@ elseif ($action === 'rename') {
         WHERE folder_id = ? AND user_id = ?
     ");
     $ok = $stmt->execute([$name, $fid, $_SESSION['user_id']]);
+    if($ok) recordUserActivity($pdo,$action==='create'?'新增資料夾':'重新命名資料夾',$action==='create'?(int)$pdo->lastInsertId():$fid,'名稱：'.$name.'；上層資料夾編號：'.$parent);
     echo json_encode(['success' => $ok]);
 }
 
@@ -124,6 +127,7 @@ elseif ($action === 'delete') {
         LIMIT 1
     ");
     $ok = $stmt->execute([$fid, $_SESSION['user_id']]);
+    if($ok && $stmt->rowCount()>0) recordUserActivity($pdo,'刪除資料夾',$fid,'刪除空資料夾');
     echo json_encode(['success' => $ok && $stmt->rowCount()>0]);
 }
 

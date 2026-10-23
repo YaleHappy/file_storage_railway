@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/user_activity.php';
 
 // 如果沒有登入 → 跳回 login
 if (!isset($_SESSION['user_id'])) {
@@ -45,6 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete'])) {
         ':share_id' => $_POST['delete'],
         ':user_id'  => $_SESSION['user_id']
     ]);
+    if($stmt->rowCount()) recordUserActivity($pdo,'取消分享',(int)$_POST['delete'],'分享編號：'.(int)$_POST['delete']);
     header('Content-Type: application/json');
     if(!$stmt->rowCount()){http_response_code(404);echo json_encode(['success'=>false,'error'=>'分享連結不存在或已移除']);}else echo json_encode(['success'=>true]);
     exit;
@@ -67,6 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update'])) {
         $password=trim((string)($_POST['share_password']??''));
         if($password!=='')$pdo->prepare('UPDATE file_shares SET share_password=? WHERE share_id=?')->execute([password_hash($password,PASSWORD_DEFAULT),$shareId]);
         $pdo->commit();
+        recordUserActivity($pdo,'修改分享設定',$shareId,'分享編號：'.$shareId);
         echo json_encode(['success'=>true]);
     }catch(Throwable $error){
         if($pdo->inTransaction())$pdo->rollBack();

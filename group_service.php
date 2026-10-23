@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__.'/user_activity.php';
 require_once __DIR__ . '/group_schema.php';
 require_once __DIR__ . '/file_cleanup.php';
 require_once __DIR__ . '/cloud_storage.php';
@@ -242,6 +243,7 @@ function groupAction(PDO $pdo, int $groupId, int $userId, string $action, array 
                 try {
                     groupQuery($pdo, 'INSERT INTO files (user_id, folder_id, original_filename, stored_filename, file_size) VALUES (?, 0, ?, ?, ?)',
                         [$userId, $message['original_filename'], $copyName, $message['file_size']]);
+                    $savedCloudId=(int)$pdo->lastInsertId();
                 } catch (Throwable $error) {
                     unlink($copyPath);
                     $cloudCopy = null;
@@ -318,6 +320,7 @@ function groupAction(PDO $pdo, int $groupId, int $userId, string $action, array 
             default: throw new InvalidArgumentException('無效的群組操作');
         }
         $pdo->commit();
+        if($action==='save_file') recordUserActivity($pdo,'儲存到雲端',$savedCloudId,'群組附件：'.$message['original_filename']);
         foreach ($dissolvedFiles as $file) {
             if (!is_string($file) || !preg_match('/^[a-f0-9]{48}\.bin$/D', $file)) continue;
             $path = groupPrivateFile($file);

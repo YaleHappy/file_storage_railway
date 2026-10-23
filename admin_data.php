@@ -21,6 +21,7 @@ function adminListData(PDO $pdo,string $section,string $q,int $page,int $uid=0,?
         'notifications'=>['n.id,n.message,n.type,n.is_read,n.created_at,s.username AS sender_name,r.username AS recipient_name','notifications n LEFT JOIN users s ON s.user_id=n.sender_id LEFT JOIN users r ON r.user_id=n.recipient_id',['n.message','s.username','r.username'],'n.id'],
         'chats'=>['c.id,c.message,c.sent_at,s.username AS sender_name,r.username AS recipient_name','chat_messages c LEFT JOIN users s ON s.user_id=c.sender_id LEFT JOIN users r ON r.user_id=c.recipient_id',['c.message','s.username','r.username'],'c.id'],
         'announcements'=>['a.id,a.title,a.content,a.start_date,a.end_date,a.is_active,a.created_at','announcements a',['a.title','a.content'],'a.id'],
+        'activity'=>['a.*','user_activity_log a',['a.actor_name','a.action','a.detail'],'a.id'],
         'logs'=>['a.*','admin_audit_log a',['a.actor_name','a.action','a.detail'],'a.id'],
     ];
     if($section==='user_files')$section='files';
