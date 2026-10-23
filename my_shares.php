@@ -159,10 +159,10 @@ if (!isset($_SESSION['status']) && isset($_SESSION['user_id'])) {
     .btn-danger:hover { background-color:#c0392b; }
   </style>
   <link href="assets/css/responsive.css?v=20261022-2" rel="stylesheet">
-<link href="assets/css/file_lists.css?v=20261022-2" rel="stylesheet">
+<link href="assets/css/file_lists.css?v=20261024-1" rel="stylesheet">
 <link href="assets/css/preview_theme.css?v=20261022-2" rel="stylesheet">
 <link href="assets/css/file_context_menu.css?v=20261024-1" rel="stylesheet">
-</head>
+<link rel="stylesheet" href="assets/css/ui_feedback.css?v=20261024-1"><script src="assets/js/ui_feedback.js?v=20261024-1"></script></head>
 <body class="has-fixed-navbar file-page">
 
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
@@ -174,7 +174,7 @@ if (!isset($_SESSION['status']) && isset($_SESSION['user_id'])) {
     </button>
     <div class="collapse navbar-collapse" id="sharesNavbar">
     <ul class="navbar-nav ms-auto">
-      <li class="nav-item"><a class="nav-link" href="my_shares.php">🔗 我的分享</a></li>
+      <li class="nav-item"><a class="nav-link active" aria-current="page" href="my_shares.php">🔗 我的分享</a></li>
       <li class="nav-item"><a class="nav-link" href="received_files.php">📥 收到的檔案</a></li>
       <li class="nav-item"><a class="nav-link" href="chat_history.php"><i class="bi bi-clock-history me-1"></i>聊天紀錄</a></li>
       <li class="nav-item dropdown">
@@ -256,10 +256,10 @@ document.querySelectorAll('.status-option').forEach(item => {
         const map = { online:'🟢 在線', idle:'🌙 閒置', away:'🔴 請勿打擾', hidden:'⚪ 隱形' };
         document.getElementById('currentStatus').textContent = map[newStatus] || '⚪ 未知';
       } else {
-        alert(data.error || '更新狀態失敗');
+        storageNotice(data.error || '更新狀態失敗');
       }
     })
-    .catch(() => alert('無法更新狀態，請檢查網路或伺服器錯誤'));
+    .catch(() => storageNotice('無法更新狀態，請檢查網路或伺服器錯誤'));
   });
 });
 
@@ -268,7 +268,9 @@ document.querySelectorAll('.btn-copy').forEach(btn => btn.addEventListener('clic
  try { await navigator.clipboard.writeText(btn.dataset.link); shareFeedback.textContent='分享連結已複製'; } catch { shareFeedback.textContent='無法自動複製，請開啟連結後複製網址。'; }
 }));
 document.querySelectorAll('.delete-btn').forEach(btn=>btn.addEventListener('click',async()=>{
- if(!confirm('確定取消分享？連結將失效，原始檔案仍會保留。')) return;
+ if(btn.dataset.confirming)return;btn.dataset.confirming='1';
+ const accepted=await storageConfirm('確定取消分享？連結將失效，原始檔案仍會保留。');delete btn.dataset.confirming;
+ if(!accepted)return;
  btn.disabled=true;
  try { const r=await fetch('my_shares.php',{method:'POST',body:new URLSearchParams({delete:btn.dataset.id})}); const d=await r.json(); if(!r.ok||!d.success) throw Error(); location.reload(); } catch { btn.disabled=false; shareFeedback.textContent='取消分享失敗，請重試。'; }
 }));
@@ -285,9 +287,9 @@ settingsForm.addEventListener('submit',async e=>{
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="assets/js/file_lists.js?v=20261022-4"></script>
-<script src="assets/js/presence.js?v=20260928-2"></script>
+<script src="assets/js/presence.js?v=20261024-3"></script>
 <script src="assets/js/message_notifications.js?v=20261021-5"></script>
-<script src="assets/js/navbar_notifications.js?v=20261022-1"></script>
+<script src="assets/js/navbar_notifications.js?v=20261024-3"></script>
 <?php require __DIR__ . '/partials/online_users.php'; ?>
 <script src="assets/js/file_context_menu.js?v=20261024-2"></script>
 </body>

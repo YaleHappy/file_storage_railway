@@ -82,7 +82,7 @@
       lastInteractionAt = Date.now();
       applyPresence(data);
     } catch (error) {
-      window.alert(error.message || '無法更新狀態');
+      storageNotice(error.message || '無法更新狀態');
     }
   }
 

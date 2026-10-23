@@ -80,10 +80,10 @@ $files = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
   </style>
   <link href="assets/css/responsive.css?v=20261022-2" rel="stylesheet">
-<link href="assets/css/file_lists.css?v=20261022-2" rel="stylesheet">
+<link href="assets/css/file_lists.css?v=20261024-1" rel="stylesheet">
 <link href="assets/css/preview_theme.css?v=20261022-2" rel="stylesheet">
 <link href="assets/css/file_context_menu.css?v=20261024-1" rel="stylesheet">
-</head>
+<link rel="stylesheet" href="assets/css/ui_feedback.css?v=20261024-1"><script src="assets/js/ui_feedback.js?v=20261024-1"></script></head>
 <body class="has-fixed-navbar file-page">
 
 <!-- 導覽列 (可與 index.php 相同) -->
@@ -178,12 +178,12 @@ document.querySelectorAll('.status-option').forEach(item => {
         document.getElementById('currentStatus').textContent = statusTextMap[newStatus] || '⚪ 未知';
         sessionStorage.setItem('user_status', newStatus);
       } else {
-        alert(data.error || '更新狀態失敗');
+        storageNotice(data.error || '更新狀態失敗');
       }
     })
     .catch(err => {
       console.error('更新狀態發生錯誤:', err);
-      alert('無法更新狀態，請檢查網路或伺服器');
+      storageNotice('無法更新狀態，請檢查網路或伺服器');
     });
   });
 });
@@ -197,7 +197,8 @@ const selectionChanged=()=>{
 };
 document.getElementById('selectAll')?.addEventListener('change',function(){document.querySelectorAll('.file-row:not([hidden]) input[name="delete[]"]').forEach(cb=>cb.checked=this.checked);selectionChanged();});
 document.querySelectorAll('input[name="delete[]"]').forEach(cb=>cb.addEventListener('change',selectionChanged));
-document.getElementById('deleteForm').addEventListener('submit',e=>{if(!confirm('移除選取的收件紀錄？已儲存的雲端副本與傳送者的檔案會保留。'))e.preventDefault();});
+let removePending=false;
+document.getElementById('deleteForm').addEventListener('submit',async e=>{e.preventDefault();if(removePending)return;removePending=true;try{if(await storageConfirm('移除選取的收件紀錄？已儲存的雲端副本與傳送者的檔案會保留。')){document.getElementById('removeReceived').disabled=true;e.target.submit();}}finally{removePending=false;}});
 document.addEventListener('file-filtered',()=>{document.querySelectorAll('.file-row[hidden] input[type=checkbox]').forEach(cb=>cb.checked=false);selectionChanged();});
 document.querySelectorAll('.save-cloud').forEach(btn=>btn.addEventListener('click',async()=>{
  btn.disabled=true;btn.textContent='儲存中…';
@@ -206,9 +207,9 @@ document.querySelectorAll('.save-cloud').forEach(btn=>btn.addEventListener('clic
 }));
 </script>
 <script src="assets/js/file_lists.js?v=20261022-4"></script>
-<script src="assets/js/presence.js?v=20260928-2"></script>
+<script src="assets/js/presence.js?v=20261024-3"></script>
 <script src="assets/js/message_notifications.js?v=20261021-5"></script>
-<script src="assets/js/navbar_notifications.js?v=20261022-1"></script>
+<script src="assets/js/navbar_notifications.js?v=20261024-3"></script>
 <?php require __DIR__ . '/partials/online_users.php'; ?>
 <script src="assets/js/file_context_menu.js?v=20261024-2"></script>
 </body>

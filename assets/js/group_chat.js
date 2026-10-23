@@ -48,7 +48,7 @@
     } finally { state.busy = false; }
   }
   async function run(operation) {
-    try { await operation(); } catch (error) { showError(error); window.alert(error.message || '操作失敗'); }
+    try { await operation(); } catch (error) { showError(error); storageNotice(error.message || '操作失敗'); }
   }
   function renderGroups() {
     const list = $('groupList') || $('historyGroupList');
@@ -102,7 +102,7 @@
     const row = element('div', 'group-file-actions');
     row.append(downloadLink(message), button('存到雲端', () => run(async () => {
       await action('save_file', { message_id: Number(message.id) });
-      window.alert('已另存到我的雲端');
+      storageNotice('已另存到我的雲端');
     })));
     row.querySelectorAll('button').forEach(btn => { btn.title = '儲存到我的雲端'; });
     return row;
@@ -125,7 +125,7 @@
         closeMessageMenu(); $('editMessageText').value = message.content; $('editDialog').showModal();
       }));
       recallButton = button(message.kind === 'file' ? '收回檔案' : '收回訊息', () => run(async () => {
-        if (!confirm('確定收回？其他成員將無法再查看或下載，已另存的副本會保留。')) return;
+        if (!(await storageConfirm('確定收回？其他成員將無法再查看或下載，已另存的副本會保留。'))) return;
         await action('recall', { message_id: Number(message.id) });
         closeMessageMenu(); await refreshRoom(true);
       }), 'btn btn-outline-danger group-recall-button');
@@ -262,7 +262,7 @@
       const row = element('div', 'group-member-row');
       row.append(element('span', '', member.username + (member.role === 'admin' ? ' · 管理員' : '')));
       if (admin && Number(member.user_id) !== Number(state.group.owner_id)) row.append(button('移除', () => run(async () => {
-        if (!confirm('確定移除此成員？對方將立即失去群組存取權。')) return;
+        if (!(await storageConfirm('確定移除此成員？對方將立即失去群組存取權。'))) return;
         await action('remove_member', { user_id: Number(member.user_id) }); $('toolsDialog').close(); await refreshRoom();
       }), 'btn btn-sm btn-outline-danger'));
       return row;
@@ -381,15 +381,15 @@
   $('saveGroupSettings').addEventListener('click',saveSettings);
   $('groupSettingsForm').addEventListener('submit',event=>{event.preventDefault();saveSettings();});
   $('transferGroupOwner').addEventListener('click',()=>run(async()=>{
-    const id=Number($('transferOwnerMember').value); if (!id || !confirm('確定轉移群主？你將改為一般成員，之後可退出群組。')) return;
+    const id=Number($('transferOwnerMember').value); if (!id || !(await storageConfirm('確定轉移群主？你將改為一般成員，之後可退出群組。'))) return;
     await action('transfer_owner',{user_id:id}); $('toolsDialog').close(); await refreshRoom();
   }));
   $('dissolveGroup').addEventListener('click',()=>run(async()=>{
-    if (!confirm('確定解散「'+state.group.name+'」？所有成員將失去群組，訊息與群組附件會刪除，已另存的副本保留。此操作無法復原。')) return;
+    if (!(await storageConfirm('確定解散「'+state.group.name+'」？所有成員將失去群組，訊息與群組附件會刪除，已另存的副本保留。此操作無法復原。'))) return;
     await action('dissolve'); location.href='chat_history.php';
   }));
   $('addMemberButton').addEventListener('click', () => run(async () => { await action('add_member', { user_id: Number($('addGroupMember').value) }); $('toolsDialog').close(); await refreshRoom(); renderMentions(); }));
-  $('leaveGroup').addEventListener('click', () => run(async () => { if (!confirm('確定退出群組？退出後將無法再查看紀錄與檔案。')) return; await action('leave'); location.href = 'chat_history.php'; }));
+  $('leaveGroup').addEventListener('click', () => run(async () => { if (!(await storageConfirm('確定退出群組？退出後將無法再查看紀錄與檔案。'))) return; await action('leave'); location.href = 'chat_history.php'; }));
   $('editMessageForm').addEventListener('submit', event => { event.preventDefault(); run(async () => { await action('edit', { message_id: Number(state.selected.id), content: $('editMessageText').value }); $('editDialog').close(); await refreshRoom(); }); });
   $('openFiles').addEventListener('click', () => run(async () => { await loadFiles(); $('toolsDialog').close(); $('filesDialog').showModal(); }));
   window.addEventListener('chat-search-jump',event=>{
@@ -397,7 +397,7 @@
     run(async()=>{
       const id=Number(event.detail.id); state.historyBefore=id+1; state.signature=''; await refreshRoom();
       const node=document.getElementById('group-message-'+id);
-      if (!node) { window.alert('訊息已被收回或刪除，請重新搜尋。'); return; }
+      if (!node) { storageNotice('訊息已被收回或刪除，請重新搜尋。'); return; }
       node.scrollIntoView({block:'center'}); node.classList.add('chat-search-highlight'); setTimeout(()=>node.classList.remove('chat-search-highlight'),2500);
     });
   });

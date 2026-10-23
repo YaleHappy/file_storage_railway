@@ -30,6 +30,6 @@
     const result=event.detail; if (Number(result.group_id)) return;
     const target=document.getElementById('private-'+result.event_type+'-'+result.id);
     if (target) { target.scrollIntoView({block:'center'}); target.classList.add('chat-search-highlight'); setTimeout(()=>target.classList.remove('chat-search-highlight'),2500); }
-    else window.alert('這則訊息已不在目前紀錄，請重新搜尋。');
+    else storageNotice('這則訊息已不在目前紀錄，請重新搜尋。');
   });
 })();

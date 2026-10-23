@@ -51,9 +51,11 @@ document.querySelectorAll('.admin-actions').forEach(actions=>{
   });
 });
 document.querySelectorAll('form[method="post"]').forEach(form=>{
-  form.addEventListener('submit',event=>{
+  let confirmed=false,confirming=false;
+  form.addEventListener('submit',async event=>{
     if(form.dataset.pending==='1'){event.preventDefault();return;}
-    if(form.dataset.confirm && !confirm(form.dataset.confirm)){event.preventDefault();return;}
+    if(form.dataset.confirm && !confirmed){event.preventDefault();if(confirming)return;confirming=true;try{if(await storageConfirm(form.dataset.confirm)){confirmed=true;if(event.submitter)form.requestSubmit(event.submitter);else form.requestSubmit();}}finally{confirming=false;}return;}
+    confirmed=false;
     form.dataset.pending='1';
     form.querySelectorAll('button[type="submit"],button:not([type])').forEach(button=>{button.disabled=true;});
   });

@@ -1,0 +1,8 @@
+.storage-notice{position:fixed;z-index:20000;bottom:90px;left:50%;transform:translateX(-50%);width:max-content;max-width:calc(100% - 32px);background:#303957;color:#f1f5ff;border:1px solid #8495c0;border-radius:12px;padding:14px 48px 14px 18px;box-shadow:0 8px 28px #0005;overflow-wrap:anywhere}
+.storage-notice[hidden]{display:none}
+.storage-notice button{position:absolute;right:10px;top:8px;border:0;background:transparent;color:#fff;font-size:24px}
+dialog.storage-confirm{background:#242644;color:#edf0ff;border:1px solid #7885af;border-radius:16px;width:min(460px,calc(100% - 32px));padding:24px;box-shadow:0 16px 50px #0006}
+dialog.storage-confirm::backdrop{background:#080b18aa}
+.storage-confirm h2{font-size:1.25rem;margin:0 0 16px}
+.storage-confirm p{white-space:pre-wrap;overflow-wrap:anywhere}
+.storage-confirm form{display:flex;justify-content:flex-end;gap:12px;margin-top:24px}

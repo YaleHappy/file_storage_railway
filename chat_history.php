@@ -524,7 +524,7 @@ function formatChatTime(?string $dateTime): string
   <link href="assets/css/chat_interactions.css?v=20261022-4" rel="stylesheet">
   <?php if ($groupMode): ?><link href="assets/css/group_chat.css?v=20261022-6" rel="stylesheet"><?php endif; ?>
   <link href="assets/css/chat_typography.css?v=20261022-2" rel="stylesheet">
-</head>
+<link rel="stylesheet" href="assets/css/ui_feedback.css?v=20261024-1"><script src="assets/js/ui_feedback.js?v=20261024-1"></script></head>
 <body class="has-fixed-navbar<?= $groupMode ? ' group-page' : '' ?>">
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
   <div class="container">
@@ -681,7 +681,7 @@ function formatChatTime(?string $dateTime): string
 <?php endif; ?>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="assets/js/chat_message_actions.js?v=20261021-9"></script>
+<script src="assets/js/chat_message_actions.js?v=20261024-3"></script>
 <script>
 const currentUserId = <?= $currentUserId ?>;
 const selectedUserId = <?= $selectedUserId ?>;
@@ -708,7 +708,7 @@ chatMessages?.addEventListener('click', async event => {
     if (!response.ok || !data.success) throw new Error(data.msg || '儲存失敗');
     privateCloudSaved.add(id); button.textContent = '已存到雲端';
     chatMessages.querySelectorAll('[data-save-cloud="'+id+'"]').forEach(node=>{node.disabled=true;node.textContent='已存到雲端';});
-  } catch (error) { button.disabled = false; alert(error.message || '儲存失敗'); }
+  } catch (error) { button.disabled = false; storageNotice(error.message || '儲存失敗'); }
   finally { privateCloudPending.delete(id); }
 });
 let timelineSignature = null;
@@ -877,7 +877,7 @@ if (chatForm) {
       await refreshTimeline(false);
       chatInput.focus();
     } catch (error) {
-      window.alert(error.message || '訊息傳送失敗，請稍後再試。');
+      storageNotice(error.message || '訊息傳送失敗，請稍後再試。');
     } finally {
       sendButton.disabled = false;
     }
@@ -921,13 +921,13 @@ document.querySelectorAll('.status-option').forEach(item => {
 
 
 </script>
-<script src="assets/js/navbar_notifications.js?v=20261022-1"></script>
+<script src="assets/js/navbar_notifications.js?v=20261024-3"></script>
 <?php if ($groupMode): ?>
-<script src="assets/js/group_chat.js?v=20261022-7"></script>
+<script src="assets/js/group_chat.js?v=20261024-3"></script>
 <?php else: ?>
 <script src="assets/js/chat_group_list.js?v=20261021-2"></script>
 <?php endif; ?>
-<script src="assets/js/presence.js?v=20260928-2"></script>
+<script src="assets/js/presence.js?v=20261024-3"></script>
 <script src="assets/js/message_notifications.js?v=20261021-5"></script>
 <?php require __DIR__ . '/partials/online_users.php'; ?>
 <?php if (($groupMode && $selectedGroupId > 0) || (!$groupMode && $selectedConversation)): ?><?php require __DIR__ . '/partials/chat_search.php'; ?><?php endif; ?>

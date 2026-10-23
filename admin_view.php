@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-TW"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" href="image/icon.png"><title>管理後臺｜<?= ah($sections[$section]) ?></title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet"><link href="assets/css/admin_workspace.css?v=20261022-7" rel="stylesheet"></head>
+<html lang="zh-TW"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" href="image/icon.png"><title>管理後臺｜<?= ah($sections[$section]) ?></title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet"><link href="assets/css/admin_workspace.css?v=20261022-7" rel="stylesheet"><link rel="stylesheet" href="assets/css/ui_feedback.css?v=20261024-1"><script src="assets/js/ui_feedback.js?v=20261024-1"></script></head>
 <body><header class="admin-top"><a href="admin.php">☁ 雲上聊頁來 <span>管理後臺</span></a><div><span><?= ah($actor['username']) ?></span><a href="index.php">回到前台</a><a href="logout.php">登出</a></div></header>
 <?php
 $navGroups=['帳號與內容'=>['users'=>'使用者','storage'=>'檔案管理','groups'=>'群組'],'訊息與公告'=>['announcements'=>'公告','notifications'=>'通知紀錄','chats'=>'私訊紀錄'],'系統概況'=>['dashboard'=>'總覽','logs'=>'管理員操作紀錄','activity'=>'使用者活動紀錄']];
@@ -61,4 +61,4 @@ case 'logs':$cells=[ah($row['created_at']),ah($row['actor_name']),ah($actionName
 <?php if(!$data['items']): ?><tr><td colspan="<?= count($headers) ?>" class="admin-empty"><?= $section==='folders' && $folder!==null?'這一層沒有子資料夾。':'沒有符合的資料。' ?></td></tr><?php endif; ?></tbody></table></div>
 <?php require __DIR__.'/partials/admin_folder_files.php'; ?>
 <?php if($section!=='dashboard'): ?><nav class="admin-pagination" aria-label="後臺分頁"><?php if($data['page']>1): ?><a class="btn btn-soft" href="<?= ah(adminUrl(['page'=>$data['page']-1])) ?>">上一頁</a><?php endif; ?><span><?= $data['page'] ?> / <?= $data['pages'] ?></span><?php if($data['page']<$data['pages']): ?><a class="btn btn-soft" href="<?= ah(adminUrl(['page'=>$data['page']+1])) ?>">下一頁</a><?php endif; ?></nav>
-<?php endif; ?></main></div><script src="assets/js/presence.js?v=20260928-2"></script><script src="assets/js/admin_workspace.js?v=20261022-4"></script></body></html>
+<?php endif; ?></main></div><script src="assets/js/presence.js?v=20261024-3"></script><script src="assets/js/admin_workspace.js?v=20261024-3"></script></body></html>

@@ -123,7 +123,7 @@ window.installChatMessageActions = function({ container, csrfToken, onChange, on
       if (editor.open) editor.close();
       return true;
     } catch (error) {
-      window.alert(error.message || '操作失敗，請稍後再試');
+      storageNotice(error.message || '操作失敗，請稍後再試');
       return false;
     } finally {
       pending = false;
@@ -143,9 +143,9 @@ window.installChatMessageActions = function({ container, csrfToken, onChange, on
       textarea.value = selected.text;
       editor.showModal();
       textarea.focus();
-    } else if (button.dataset.action === 'recall' && window.confirm(selected.type === 'file'
+    } else if (button.dataset.action === 'recall' && (await storageConfirm(selected.type === 'file'
       ? '確定收回這個檔案？對方將無法再透過這筆傳送下載，但已下載或另存的副本不會移除。'
-      : '確定收回這則訊息？雙方都將看不到此訊息。')) {
+      : '確定收回這則訊息？雙方都將看不到此訊息。'))) {
       await mutate('recall');
     }
   });

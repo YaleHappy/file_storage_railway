@@ -67,7 +67,7 @@ function renderNotifications(notifications) {
         if (!response.ok || !data.success) throw new Error(data.msg || '刪除通知失敗');
         item.remove();
       } catch (error) {
-        window.alert(error.message || '刪除通知失敗，請稍後再試');
+        storageNotice(error.message || '刪除通知失敗，請稍後再試');
         deleteButton.disabled = false;
       } finally {
         deletionPending = false;
@@ -89,7 +89,7 @@ function renderNotifications(notifications) {
         const data = await response.json();
         if (!data.success) throw new Error(data.msg || '無法標記已讀');
         await loadNotifications();
-      } catch (error) { window.alert(error.message); readButton.disabled = false; }
+      } catch (error) { storageNotice(error.message); readButton.disabled = false; }
     });
     row.append(icon, content, readButton, deleteButton);
     item.appendChild(row);
@@ -120,7 +120,7 @@ function renderNotifications(notifications) {
   clearHistoryButton.addEventListener('click', async event => {
     event.preventDefault();
     event.stopPropagation();
-    if (deletionPending || !window.confirm('確定要清除所有通知歷史嗎？此操作不可恢復。')) return;
+    if (deletionPending || !(await storageConfirm('確定要清除所有通知歷史嗎？此操作不可恢復。'))) return;
     deletionPending = true;
     notificationVersion++;
     clearHistoryButton.disabled = true;
@@ -133,7 +133,7 @@ function renderNotifications(notifications) {
       updateNotificationBadge(0);
       renderNotifications([]);
     } catch (error) {
-      window.alert(error.message || '清除通知歷史失敗，請稍後再試');
+      storageNotice(error.message || '清除通知歷史失敗，請稍後再試');
       clearHistoryButton.disabled = false;
     } finally {
       deletionPending = false;

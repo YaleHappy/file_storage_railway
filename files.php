@@ -905,7 +905,7 @@ if ($user_id) {
         rel="stylesheet"
     >
 
-</head>
+<link rel="stylesheet" href="assets/css/ui_feedback.css?v=20261024-1"><script src="assets/js/ui_feedback.js?v=20261024-1"></script></head>
 
 
 <body class="p-4 bg-light">
@@ -1030,7 +1030,7 @@ if ($user_id) {
                             <a
                                 href="?delete=<?= (int) $f['file_id'] ?>"
                                 class="btn btn-sm btn-danger"
-                                onclick="return confirm('確定要刪除這個檔案嗎？');"
+                                data-storage-confirm="確定要刪除這個檔案嗎？"
                             >
                                 刪除
                             </a>

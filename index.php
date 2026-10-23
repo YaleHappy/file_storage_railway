@@ -294,7 +294,7 @@ html, body {
 <link href="assets/css/storage_workspace.css?v=20261024-1" rel="stylesheet">
 <link href="assets/css/cloud_search.css?v=20261022-1" rel="stylesheet">
 <link href="assets/css/file_context_menu.css?v=20261024-1" rel="stylesheet">
-</head>
+<link rel="stylesheet" href="assets/css/ui_feedback.css?v=20261024-1"><script src="assets/js/ui_feedback.js?v=20261024-1"></script></head>
 <body class="has-fixed-navbar home-page">
 
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
@@ -754,10 +754,10 @@ function folderDrop(e) {
   .then(r => r.json())
   .then(js => {
     if (js.success) {
-      alert('檔案移動成功');
+      storageNotice('檔案移動成功');
       location.reload();
     } else {
-      alert(js.msg || '檔案移動失敗');
+      storageNotice(js.msg || '檔案移動失敗');
     }
   });
 }
@@ -808,7 +808,7 @@ document.getElementById('createFolderForm').onsubmit = async e => {
     bootstrap.Modal.getInstance(document.getElementById('createFolderModal')).hide();
     location.reload();
   } else {
-    alert(js.msg || '建立資料夾失敗');
+    storageNotice(js.msg || '建立資料夾失敗');
   }
 };
 // 上傳檔案
@@ -897,7 +897,7 @@ document.getElementById('shareForm').onsubmit = async e => {
     el.innerHTML = `<strong>分享連結：</strong><a href="${js.link}" target="_blank">${js.link}</a>`;
     el.classList.remove('d-none');
   } else {
-    alert(js.msg || "產生分享連結失敗");
+    storageNotice(js.msg || "產生分享連結失敗");
   }
 };
 // 移動檔案 Modal
@@ -1003,7 +1003,7 @@ document.getElementById('sendFileForm').addEventListener('submit', function(e){
   .then(response => response.json())
   .then(data => {
     if(data.success) {
-      alert('檔案傳送成功');
+      storageNotice('檔案傳送成功');
       bootstrap.Modal.getInstance(document.getElementById('sendFileModal')).hide();
     } else {
       document.getElementById('sendFileAlert').textContent = data.msg || '傳送失敗';
@@ -1044,12 +1044,12 @@ document.querySelectorAll('.status-option').forEach(item => {
         setTimeout(loadUserList, 800);
       } else {
         console.error('更新狀態失敗:', data.error);
-        alert(data.error || '更新狀態失敗');
+        storageNotice(data.error || '更新狀態失敗');
       }
     })
     .catch(err => {
       console.error('AJAX 錯誤:', err);
-      alert('無法更新狀態，請檢查網路或伺服器錯誤');
+      storageNotice('無法更新狀態，請檢查網路或伺服器錯誤');
     });
   });
 });
@@ -1106,7 +1106,7 @@ function checkNewFiles() {
       // 只有在未讀檔案數量「增加」時才提示，避免每次輪詢都重複跳 alert
       if (data.success && newCount > 0 && newCount > lastNewFileCount && document.documentElement.dataset.presenceStatus !== 'away') {
         // 例如用 alert 提示，或是加個 badge
-        alert(`你有 ${newCount} 個新檔案尚未讀取！`);
+        storageNotice(`你有 ${newCount} 個新檔案尚未讀取！`);
       }
 
       // 記錄最新計數，當使用者已讀/刪除後回落為 0，之後有新檔案仍可再次提示
@@ -1212,8 +1212,8 @@ function openPreviewModal(fileId) {
   }
 
 </script>
-<script src="assets/js/navbar_notifications.js?v=20261022-1"></script>
-<script src="assets/js/presence.js?v=20260928-2"></script>
+<script src="assets/js/navbar_notifications.js?v=20261024-3"></script>
+<script src="assets/js/presence.js?v=20261024-3"></script>
 <script src="assets/js/message_notifications.js?v=20261021-5"></script>
 <?php require __DIR__ . '/partials/online_users.php'; ?>
 <script src="assets/js/storage_workspace.js?v=20261024-1"></script>
